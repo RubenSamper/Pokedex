@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activida 2</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <main id="ContenedorPrincipal">
+        <div id="ContenedorPokemon">
+            <h2>Pokemon</h2>
+            <div id="galeriaPokemon" class="galeria-pokemon"></div>
+            <div class="contenedor-boton">
+                <button id="btnCargarMas" class="btn-cargar">Cargar más</button>
+            </div>
+        </div>
+    </main>
+    
+    <div id="modalPokemon" class="modal oculto">
+        <div class="modal-contenido">
+            <span class="cerrar">&times;</span>
+            <h2 id="nombreModal"></h2>
+            <div class="modal-body">
+                <img id="imgModal" alt="Pokemon">
+                <div class="info-pokemon">
+                    <p><strong>ID:</strong> <span id="idModal"></span></p>
+                    <p><strong>Tipo:</strong> <span id="tipoModal"></span></p>
+                    <p><strong>Altura:</strong> <span id="alturaModal"></span> m</p>
+                    <p><strong>Peso:</strong> <span id="pesoModal"></span> kg</p>
+                </div>
+            </div>
+            <div class="descripcion-pokemon">
+                <p id="descripcionModal"></p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/main.js" defer></script>
+</body>
+
+</html>
