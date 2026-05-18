@@ -198,6 +198,12 @@ function crearCard(id, nombre) {
     div.appendChild(idLabel);
 
     div.addEventListener("click", function () {
+        let cryUrl = this.dataset.cryUrl;
+        if (cryUrl) {
+            let audio = new Audio(cryUrl);
+            audio.volume = 0.06;
+            audio.play().catch(function () {});
+        }
         abrirModal(parseInt(this.dataset.id));
     });
 
@@ -218,7 +224,9 @@ async function cargarSpritesEnLotes(lista) {
                 })
                 .then(function (data) {
                     let mejorSprite = obtenerSprite(data);
+                    let cryUrl = data.cries && (data.cries.latest || data.cries.legacy);
                     cards.forEach(function (card) {
+                        if (cryUrl) card.dataset.cryUrl = cryUrl;
                         let img = card.querySelector("img");
                         img.onerror = function () {
                             this.src = FALLBACK_SPRITE;
