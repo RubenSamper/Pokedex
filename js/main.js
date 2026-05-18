@@ -458,11 +458,25 @@ async function abrirModal(idPokemon) {
         let data = await pokemonResponse.json();
         let especieData = await especieResponse.json();
 
-        let sprite = obtenerSprite(data);
+        let spriteNormal = obtenerSprite(data);
+        let spriteShiny = obtenerSprite(data, true);
         let imgModal = document.querySelector("#imgModal");
-        imgModal.src = sprite || FALLBACK_SPRITE;
-        if (sprite) {
+        let btnShiny = document.querySelector("#btnShiny");
+        imgModal.src = spriteNormal || FALLBACK_SPRITE;
+        if (spriteNormal) {
             imgModal.onerror = function () { this.src = FALLBACK_SPRITE; this.onerror = null; };
+        }
+        if (spriteShiny) {
+            btnShiny.classList.remove("oculto");
+            btnShiny.classList.remove("activo");
+            let isShiny = false;
+            btnShiny.onclick = function () {
+                isShiny = !isShiny;
+                imgModal.src = isShiny ? spriteShiny : spriteNormal;
+                btnShiny.classList.toggle("activo", isShiny);
+            };
+        } else {
+            btnShiny.classList.add("oculto");
         }
 
         document.querySelector("#nombreModal").textContent = data.name;
@@ -616,16 +630,18 @@ async function traducirChipsMovimiento(chips) {
     }
 }
 
-function obtenerSprite(data) {
+function obtenerSprite(data, shiny) {
+    var key = shiny ? "front_shiny" : "front_default";
     try {
         var gen5 = data.sprites.versions["generation-v"]["black-white"];
-        if (gen5 && gen5.animated && gen5.animated.front_default) return gen5.animated.front_default;
+        if (gen5 && gen5.animated && gen5.animated[key]) return gen5.animated[key];
     } catch (e) {}
     try {
         var artwork = data.sprites.other["official-artwork"];
-        if (artwork && artwork.front_default) return artwork.front_default;
+        if (artwork && artwork[key]) return artwork[key];
     } catch (e) {}
-    if (data.sprites.front_default) return data.sprites.front_default;
+    if (data.sprites[key]) return data.sprites[key];
+    if (!shiny && data.sprites.front_default) return data.sprites.front_default;
     return null;
 }
 

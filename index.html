@@ -4,30 +4,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokedex</title>
+    <title>Pokédex</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
     <main id="ContenedorPrincipal">
         <div id="ContenedorPokemon">
-            <h2>Pokedex</h2>
-            <div class="buscador-contenedor">
-                <input type="text" id="buscador" class="buscador" placeholder="Buscar por nombre o ID...">
+            <div class="pokedex-header">
+                <div class="pokedex-logo">
+                    <div class="pokeball-icon"></div>
+                    <h1>Pokédex</h1>
+                </div>
+                <div class="header-led"></div>
             </div>
-            <div id="loadingIndicator" class="loading-spinner"></div>
-            <div id="galeriaPokemon" class="galeria-pokemon"></div>
-            <div id="noResults" class="no-resultados oculto">No se encontraron pokemon</div>
-            <div id="pokemonCount" class="pokemon-count"></div>
+            <div class="pokedex-content">
+                <div class="buscador-contenedor">
+                    <input type="text" id="buscador" class="buscador" placeholder="Buscar por nombre o ID...">
+                </div>
+                <div id="loadingIndicator" class="loading-spinner"></div>
+                <div id="galeriaPokemon" class="galeria-pokemon"></div>
+                <div id="noResults" class="no-resultados oculto">No se encontraron pokemon</div>
+                <div id="pokemonCount" class="pokemon-count"></div>
+            </div>
         </div>
     </main>
 
     <div id="modalPokemon" class="modal oculto">
         <div class="modal-contenido">
-            <span class="cerrar">&times;</span>
+            <div class="modal-header">
+                <div class="modal-header-led"></div>
+                <div class="modal-header-bar"></div>
+                <span class="cerrar">&times;</span>
+            </div>
             <h2 id="nombreModal"></h2>
             <div class="modal-body">
-                <img id="imgModal" alt="Pokemon">
+                <div class="modal-img-wrapper">
+                    <img id="imgModal" alt="Pokemon">
+                    <button id="btnShiny" class="btn-shiny oculto" title="Alternar shiny">✨</button>
+                </div>
                 <div class="info-pokemon">
                     <p><strong>ID:</strong> <span id="idModal"></span></p>
                     <p><strong>Tipo:</strong> <span id="tipoModal"></span></p>
