@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -11,14 +11,17 @@
 <body>
     <main id="ContenedorPrincipal">
         <div id="ContenedorPokemon">
-            <h2>Pokemon</h2>
-            <div id="galeriaPokemon" class="galeria-pokemon"></div>
-            <div class="contenedor-boton">
-                <button id="btnCargarMas" class="btn-cargar">Cargar más</button>
+            <h2>Pokedex</h2>
+            <div class="buscador-contenedor">
+                <input type="text" id="buscador" class="buscador" placeholder="Buscar por nombre o ID...">
             </div>
+            <div id="loadingIndicator" class="loading-spinner"></div>
+            <div id="galeriaPokemon" class="galeria-pokemon"></div>
+            <div id="noResults" class="no-resultados oculto">No se encontraron pokemon</div>
+            <div id="pokemonCount" class="pokemon-count"></div>
         </div>
     </main>
-    
+
     <div id="modalPokemon" class="modal oculto">
         <div class="modal-contenido">
             <span class="cerrar">&times;</span>
@@ -30,14 +33,40 @@
                     <p><strong>Tipo:</strong> <span id="tipoModal"></span></p>
                     <p><strong>Altura:</strong> <span id="alturaModal"></span> m</p>
                     <p><strong>Peso:</strong> <span id="pesoModal"></span> kg</p>
+                    <p><strong>Exp. base:</strong> <span id="expModal"></span></p>
+                    <p><strong>Habilidades:</strong> <span id="habilidadesModal"></span></p>
                 </div>
+            </div>
+            <div class="stats-seccion">
+                <h3>Estadísticas base</h3>
+                <div id="statsContainer"></div>
+            </div>
+            <div class="habilidades-seccion">
+                <h3>Habilidades</h3>
+                <div id="habilidadesContainer"></div>
+            </div>
+            <div class="evoluciones-seccion">
+                <h3>Evoluciones</h3>
+                <div id="evolucionesContainer" class="evoluciones-lista"></div>
+            </div>
+            <div class="movimientos-seccion">
+                <h3>Movimientos</h3>
+                <div id="movimientosContainer" class="movimientos-lista"></div>
+                <div id="moveDetalle" class="move-detalle oculto">
+                    <div class="move-detalle-titulo" id="moveDetalleTitulo"></div>
+                    <div class="move-detalle-desc" id="moveDetalleDesc"></div>
+                </div>
+            </div>
+            <div class="cries-seccion">
+                <h3>Sonido</h3>
+                <div id="criesContainer"></div>
             </div>
             <div class="descripcion-pokemon">
                 <p id="descripcionModal"></p>
             </div>
         </div>
     </div>
-    
+
     <script src="js/main.js" defer></script>
 </body>
 
