@@ -259,6 +259,56 @@ const TRAD_TIPO = {
     dark: "Siniestro", steel: "Acero", fairy: "Hada"
 };
 
+const TRAD_OBJETOS = {
+    "fire-stone": "Piedra Fuego",
+    "water-stone": "Piedra Agua",
+    "thunder-stone": "Piedra Trueno",
+    "leaf-stone": "Piedra Hoja",
+    "moon-stone": "Piedra Lunar",
+    "sun-stone": "Piedra Solar",
+    "shiny-stone": "Piedra Día",
+    "dusk-stone": "Piedra Noche",
+    "dawn-stone": "Piedra Alba",
+    "ice-stone": "Piedra Hielo",
+    "oval-stone": "Piedra Ovalada",
+    "king-s-rock": "Roca del Rey",
+    "metal-coat": "Capa Metálica",
+    "dragon-scale": "Escama Dragón",
+    "up-grade": "Mejora",
+    "protector": "Protector",
+    "electirizer": "Electrizador",
+    "magmarizer": "Magmatizador",
+    "razor-claw": "Garra Afilada",
+    "razor-fang": "Colmillo Afilado",
+    "reaper-cloth": "Tela Tétrica",
+    "prism-scale": "Escama Prisma",
+    "sachet": "Fragüino",
+    "whipped-dream": "Dulce Nube",
+    "deep-sea-tooth": "Diente Marino",
+    "deep-sea-scale": "Escama Marina",
+    "dubious-disc": "Disco Extraño",
+    "sweet-apple": "Manzana Dulce",
+    "tart-apple": "Manzana Ácida",
+    "cracked-pot": "Tetera Rota",
+    "chipped-pot": "Tetera Estropeada",
+    "galarica-cuff": "Brazal Galar",
+    "galarica-wreath": "Corona Galar",
+    "black-augurite": "Augurita Negra",
+    "peat-block": "Bloque Turbo",
+    "malicious-armor": "Armadura Maligna",
+    "scroll-of-darkness": "Pergamino Oscuridad",
+    "scroll-of-waters": "Pergamino Agua",
+    "linking-cord": "Cordón Unión",
+    "syrupy-apple": "Manzana Melosa",
+    "berry-sweet": "Baya Dulce",
+    "clover-sweet": "Trébol Dulce",
+    "flower-sweet": "Flor Dulce",
+    "love-sweet": "Amor Dulce",
+    "ribbon-sweet": "Lazo Dulce",
+    "star-sweet": "Estrella Dulce",
+    "strawberry-sweet": "Fresa Dulce"
+};
+
 const DESC_HABILIDAD = {
     "overgrow": "Potencia los movimientos de tipo planta cuando le quedan pocos PS.",
     "blaze": "Potencia los movimientos de tipo fuego cuando le quedan pocos PS.",
@@ -526,6 +576,7 @@ async function abrirModal(idPokemon) {
         let statsContainer = document.querySelector("#statsContainer");
         statsContainer.innerHTML = "";
 
+        var statsTargets = [];
         data.stats.forEach(function (s) {
             let item = document.createElement("div");
             item.className = "stat-item";
@@ -544,7 +595,8 @@ async function abrirModal(idPokemon) {
             let barraInner = document.createElement("div");
             barraInner.className = "stat-barra-relleno";
             var pct = Math.min((s.base_stat / 255) * 100, 100);
-            barraInner.style.width = pct + "%";
+            barraInner.style.width = "0%";
+            barraInner.dataset.pct = pct;
             barraInner.style.background = obtenerColorStat(pct);
 
             barraOuter.appendChild(barraInner);
@@ -552,6 +604,16 @@ async function abrirModal(idPokemon) {
             item.appendChild(barraOuter);
             item.appendChild(val);
             statsContainer.appendChild(item);
+            statsTargets.push(barraInner);
+        });
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                statsTargets.forEach(function (el, idx) {
+                    setTimeout(function () {
+                        el.style.width = el.dataset.pct + "%";
+                    }, idx * 60);
+                });
+            });
         });
 
         cargarEvoluciones(especieData);
@@ -666,7 +728,7 @@ async function cargarEvoluciones(especieData) {
         let data = await resp.json();
         let cadena = data.chain;
         let niveles = [];
-        extraerNiveles(cadena, niveles, 0);
+        extraerNiveles(cadena, niveles, 0, []);
 
         if (niveles.length <= 1) {
             container.innerHTML = '<span class="evo-placeholder">No tiene evoluciones</span>';
@@ -720,10 +782,23 @@ async function cargarEvoluciones(especieData) {
             container.appendChild(link);
 
             if (i < niveles.length - 1) {
+                let grupo = document.createElement("span");
+                grupo.className = "evo-grupo-flecha";
+
                 let flecha = document.createElement("span");
                 flecha.className = "evo-flecha";
                 flecha.textContent = "\u2192";
-                container.appendChild(flecha);
+                grupo.appendChild(flecha);
+
+                var detalleSiguiente = niveles[i + 1].detalle;
+                if (detalleSiguiente) {
+                    let detalle = document.createElement("span");
+                    detalle.className = "evo-detalle";
+                    detalle.textContent = detalleSiguiente;
+                    grupo.appendChild(detalle);
+                }
+
+                container.appendChild(grupo);
             }
         }
     } catch (e) {
@@ -731,13 +806,107 @@ async function cargarEvoluciones(especieData) {
     }
 }
 
-function extraerNiveles(cadena, resultado, profundidad) {
-    resultado.push({ nombre: cadena.species.name, url: cadena.species.url, nivel: profundidad });
+function extraerNiveles(cadena, resultado, profundidad, detallesEvo) {
+    var textoDetalle = null;
+    if (detallesEvo && detallesEvo.length > 0) {
+        textoDetalle = formatearDetalleEvo(detallesEvo[0]);
+    }
+    resultado.push({ nombre: cadena.species.name, url: cadena.species.url, nivel: profundidad, detalle: textoDetalle });
     if (cadena.evolves_to && cadena.evolves_to.length > 0) {
         cadena.evolves_to.forEach(function (evo) {
-            extraerNiveles(evo, resultado, profundidad + 1);
+            extraerNiveles(evo, resultado, profundidad + 1, evo.evolution_details);
         });
     }
+}
+
+function formatearDetalleEvo(detalle) {
+    var trigger = detalle.trigger ? detalle.trigger.name : null;
+    if (trigger === "level-up") {
+        if (detalle.min_level) {
+            return "Nv. " + detalle.min_level;
+        }
+        return "Nv. up";
+    }
+    if (trigger === "use-item") {
+        if (detalle.item) {
+            var nombreItem = TRAD_OBJETOS[detalle.item.name] || detalle.item.name.replace(/-/g, " ");
+            return nombreItem;
+        }
+        return "Objeto";
+    }
+    if (trigger === "trade") {
+        if (detalle.held_item) {
+            var objeto = TRAD_OBJETOS[detalle.held_item.name] || detalle.held_item.name.replace(/-/g, " ");
+            return "Interc. + " + objeto;
+        }
+        return "Intercambio";
+    }
+    if (trigger === "shed") {
+        return "Evolución";
+    }
+    if (trigger === "spin") {
+        return "Girar";
+    }
+    if (trigger === "level-up-happiness") {
+        return "Amistad Nv." + (detalle.min_level || "");
+    }
+    if (trigger === "three-critical-hits") {
+        return "3 críticos";
+    }
+    if (trigger === "take-damage") {
+        return "Daño recibido";
+    }
+    if (trigger === "tower-of-darkness") {
+        return "Torre Oscuridad";
+    }
+    if (trigger === "tower-of-waters") {
+        return "Torre Agua";
+    }
+    if (trigger === "level-up-night") {
+        if (detalle.min_level) return "Noche Nv. " + detalle.min_level;
+        return "Noche";
+    }
+    if (trigger === "level-up-day") {
+        if (detalle.min_level) return "Día Nv. " + detalle.min_level;
+        return "Día";
+    }
+    if (trigger === "friendship") {
+        return "Amistad";
+    }
+    if (trigger === "beauty") {
+        return "Belleza";
+    }
+    if (trigger === "agile-style") {
+        return "Estilo ágil";
+    }
+    if (trigger === "defeat-leader") {
+        return "Derrotar líder";
+    }
+    if (trigger === "defeat-agatha") {
+        return "Derrotar a Ágatha";
+    }
+    if (trigger === "defeat-primeape") {
+        return "Derrotar ×20 Primeape";
+    }
+    if (trigger === "level-up-atk>def") {
+        if (detalle.min_level) return "Nv. " + detalle.min_level + " (Ataque>Def)";
+        return "Ataque > Defensa";
+    }
+    if (trigger === "level-up-atk=def") {
+        if (detalle.min_level) return "Nv. " + detalle.min_level + " (Atq=Def)";
+        return "Ataque = Defensa";
+    }
+    if (trigger === "level-up-def>atk") {
+        if (detalle.min_level) return "Nv. " + detalle.min_level + " (Def>Ataque)";
+        return "Defensa > Ataque";
+    }
+    if (trigger === "recoil-damage") {
+        return "Daño retroceso";
+    }
+    if (trigger === "crit-count") {
+        return "Críticos en combate";
+    }
+    return trigger ? trigger.replace(/-/g, " ") : "Evolución";
 }
 
 function filtrarPokemones() {

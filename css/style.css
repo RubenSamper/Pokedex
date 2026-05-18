@@ -6,16 +6,17 @@
 
 body {
     font-family: 'Roboto', Arial, sans-serif;
-    background: radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f1a 50%, #050510 100%);
+    background-color: #0a0a15;
+    background-image:
+        linear-gradient(90deg, rgba(80, 200, 120, 0.06) 1px, transparent 1px),
+        linear-gradient(rgba(80, 200, 120, 0.06) 1px, transparent 1px),
+        radial-gradient(ellipse at 50% 55%, rgba(80, 200, 120, 0.05) 0%, transparent 60%),
+        radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f1a 50%, #050510 100%);
+    background-size: 52px 52px, 52px 52px, 100% 100%, 100% 100%;
+    background-position: center center, center center, center center, center center;
+    background-repeat: repeat, repeat, no-repeat, no-repeat;
     min-height: 100vh;
     padding: 10px;
-    background-image:
-        radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.05), transparent),
-        radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.04), transparent),
-        radial-gradient(2px 2px at 50px 160px, rgba(255, 255, 255, 0.05), transparent),
-        radial-gradient(2px 2px at 90px 40px, rgba(255, 255, 255, 0.04), transparent),
-        radial-gradient(2px 2px at 130px 80px, rgba(255, 255, 255, 0.05), transparent);
-    background-size: 200px 200px;
 }
 
 #ContenedorPrincipal {
@@ -35,6 +36,7 @@ body {
     box-shadow: 0 0 0 4px #1a1a2e, 0 0 0 8px #ffd700, 0 20px 60px rgba(0, 0, 0, 0.8);
     position: relative;
     overflow: hidden;
+    z-index: 1;
 }
 
 #ContenedorPokemon::before {
@@ -771,6 +773,24 @@ body {
     color: #cc0000;
     font-weight: 900;
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+.evo-grupo-flecha {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.evo-detalle {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: #cc0000;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.4;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
 }
 
 .evo-placeholder {
