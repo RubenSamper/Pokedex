@@ -681,8 +681,8 @@ function abrirComparar(id1, id2) {
 }
 
 async function cargarSpritesEnLotes(lista) {
-    for (let i = 0; i < lista.length; i += 5) {
-        let lote = lista.slice(i, i + 5);
+    for (let i = 0; i < lista.length; i += 20) {
+        let lote = lista.slice(i, i + 20);
         let promesas = lote.map(function (item) {
             let id = extraerId(item.url);
             let cards = galeriaPokemon.querySelectorAll('.pokemon-item[data-id="' + id + '"]');
@@ -711,7 +711,7 @@ async function cargarSpritesEnLotes(lista) {
         });
         await Promise.allSettled(promesas);
         if (i % 100 === 0) actualizarContador();
-        await new Promise(function (r) { setTimeout(r, 50); });
+        await new Promise(function (r) { setTimeout(r, 5); });
     }
     actualizarContador();
 }
