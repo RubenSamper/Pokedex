@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Objetos Evolutivos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <main id="ContenedorPrincipal">
+        <div id="ContenedorPokemon" class="item-page">
+            <div class="pokedex-header">
+                <div class="pokedex-logo">
+                    <div class="pokeball-icon"></div>
+                    <h1>Objetos Evolutivos</h1>
+                </div>
+                <div class="header-led"></div>
+            </div>
+            <div class="pokedex-content">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <a href="index.html" class="toolbar-btn" id="btnVolver">&#8592; Volver</a>
+                    </div>
+                </div>
+
+                <div class="buscador-contenedor buscador-contenedor-items">
+                    <input type="text" id="buscadorItems" class="buscador" placeholder="Buscar objeto evolutivo...">
+                    <button id="btnClearItemSearch" class="btn-clear-search oculto" title="Limpiar búsqueda">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        </svg>
+                    </button>
+                    <div id="itemSuggestions" class="autocomplete-sugerencias oculto"></div>
+                </div>
+                <div id="loadingItems" class="loading-spinner" style="display:none"></div>
+                <div id="itemCount" class="pokemon-count"></div>
+                <div id="galeriaItems" class="galeria-pokemon"></div>
+                <div id="noItemResults" class="no-resultados oculto">No se encontraron objetos</div>
+                <div id="resultadosItems" class="resultados-items" style="display:none"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/items.js" defer></script>
+</body>
+
+</html>

@@ -502,6 +502,18 @@ async function cargarTodos() {
         cargarSpritesEnLotes(todasLasUrls);
         actualizarContador();
         crearFiltrosTipo();
+
+        let params = new URLSearchParams(window.location.search);
+        let pokemonId = params.get("pokemon");
+        if (pokemonId) {
+            setTimeout(function () {
+                abrirModal(parseInt(pokemonId));
+                let cards = document.querySelectorAll('.pokemon-item[data-id="' + pokemonId + '"]');
+                if (cards.length > 0) {
+                    cards[0].scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            }, 1000);
+        }
     } catch (error) {
         console.log("Error cargando lista de pokemon:", error);
         loadingIndicator.style.display = "none";
@@ -706,6 +718,27 @@ async function cargarSpritesEnLotes(lista) {
                         };
                         img.src = mejorSprite || FALLBACK_SPRITE;
                     });
+                    return fetch("https://pokeapi.co/api/v2/pokemon-species/" + id + "/");
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (species) {
+                    if (species.is_legendary || species.is_mythical || esPseudoLegendario(pokemonDataCache[id])) {
+                        cards.forEach(function (card) {
+                            let badge = document.createElement("span");
+                            badge.className = "pokemon-rareza-badge";
+                            if (species.is_legendary) {
+                                badge.textContent = "\u2605";
+                                badge.title = "Legendario";
+                            } else if (species.is_mythical) {
+                                badge.textContent = "\u2728";
+                                badge.title = "M\u00edtico";
+                            } else {
+                                badge.textContent = "\u26A1";
+                                badge.title = "Pseudolegendario";
+                            }
+                            card.appendChild(badge);
+                        });
+                    }
                 })
                 .catch(function () {});
         });
@@ -912,6 +945,21 @@ async function abrirModal(idPokemon) {
         document.querySelector("#pesoModal").textContent = (data.weight / 10).toFixed(1);
         document.querySelector("#expModal").textContent = data.base_experience || "N/A";
         document.querySelector("#genModal").textContent = getGeneracion(data.id);
+
+        let rarezaEl = document.querySelector("#rarezaModal");
+        if (especieData.is_legendary) {
+            rarezaEl.textContent = "Legendario";
+            rarezaEl.style.color = "#ffd700";
+        } else if (especieData.is_mythical) {
+            rarezaEl.textContent = "Mítico";
+            rarezaEl.style.color = "#ff69b4";
+        } else if (esPseudoLegendario(data)) {
+            rarezaEl.textContent = "Pseudolegendario";
+            rarezaEl.style.color = "#00bcd4";
+        } else {
+            rarezaEl.textContent = "Normal";
+            rarezaEl.style.color = "#999";
+        }
 
         actualizarFavEstrellas(data.id);
 
@@ -1426,3 +1474,10 @@ function formatearDetalleEvo(detalle) {
     if (trigger === "crit-count") return "Críticos en combate";
     return trigger ? trigger.replace(/-/g, " ") : "Evolución";
 }
+
+function esPseudoLegendario(data) {
+    let bst = data.stats.reduce(function (sum, s) { return sum + s.base_stat; }, 0);
+    return bst === 600;
+}
+
+
