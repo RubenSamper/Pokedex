@@ -1988,6 +1988,18 @@ function renderizarSelectorEquipos() {
 
 function renderizarEquipo() {
     let eq = getEquipo();
+    if (teamOrderBy) {
+        var ORDER_MAP2 = { velocidad: 'speed', ps: 'hp', ataque: 'attack', defensa: 'defense', 'special-attack': 'special-attack', 'special-defense': 'special-defense' };
+        var key2 = ORDER_MAP2[teamOrderBy];
+        eq.sort(function (a, b) {
+            var getVal2 = function (p) {
+                var s2 = p.stats || {};
+                if (teamOrderBy === 'bst') { var sum2 = 0; ['hp','attack','defense','special-attack','special-defense','speed'].forEach(function (k) { sum2 += s2[k] || 0; }); return sum2; }
+                return s2[key2] || 0;
+            };
+            return getVal2(b) - getVal2(a);
+        });
+    }
     let slots = teamSlots.querySelectorAll(".team-slot");
     slots.forEach(function (slot, i) {
         let pkm = eq[i];
@@ -2204,23 +2216,6 @@ function actualizarAnalisisEquipo() {
     let STAT_COLORS = { hp: '#43A047', attack: '#EF5350', defense: '#FF9800', 'special-attack': '#5C6BC0', 'special-defense': '#26A69A', speed: '#AB47BC' };
     let TRAD_STATS = { hp: 'PS', attack: 'Ataque', defense: 'Defensa', 'special-attack': 'At. Esp', 'special-defense': 'Def. Esp', speed: 'Velocidad' };
 
-    if (teamOrderBy) {
-        eq.sort(function (a, b) {
-            var ORDER_MAP = { velocidad: 'speed', ps: 'hp', ataque: 'attack', defensa: 'defense', 'special-attack': 'special-attack', 'special-defense': 'special-defense' };
-            var key = ORDER_MAP[teamOrderBy];
-            var getVal = function (p) {
-                var s = p.stats || {};
-                if (teamOrderBy === 'bst') {
-                    var sum = 0;
-                    ['hp','attack','defense','special-attack','special-defense','speed'].forEach(function (k) { sum += s[k] || 0; });
-                    return sum;
-                }
-                return s[key] || 0;
-            };
-            return getVal(b) - getVal(a);
-        });
-    }
-
     eq.forEach(function (pkm, i) {
         (pkm.tipos || []).forEach(function (t) {
             if (tiposEquipo.indexOf(t) === -1) tiposEquipo.push(t);
@@ -2331,7 +2326,7 @@ function actualizarAnalisisEquipo() {
     teamInfo.querySelectorAll('.te-order-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             teamOrderBy = this.dataset.order;
-            actualizarAnalisisEquipo();
+            renderizarEquipo();
         });
     });
 }
