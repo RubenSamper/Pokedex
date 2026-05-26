@@ -4,10 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pokédex</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>Atlas Pokédex</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -16,46 +13,69 @@
         <div id="ContenedorPokemon">
             <div class="pokedex-header">
                 <div class="pokedex-logo">
-                    <div class="pokeball-icon"></div>
-                    <h1>Pokédex</h1>
+                    <svg class="pokeball-icon" viewBox="0 0 100 100" width="40" height="40">
+                        <circle cx="50" cy="50" r="48" fill="#ef5350" stroke="rgba(24,32,42,0.12)" stroke-width="2"/>
+                        <path d="M2 50 A48 48 0 0 0 98 50" fill="#f4f5f7"/>
+                        <rect x="2" y="47" width="96" height="6" fill="rgba(24,32,42,0.12)"/>
+                        <circle cx="50" cy="50" r="16" fill="#f4f5f7" stroke="rgba(24,32,42,0.12)" stroke-width="2"/>
+                        <circle cx="50" cy="50" r="8" fill="#f4f5f7" stroke="rgba(24,32,42,0.15)" stroke-width="1.5"/>
+                    </svg>
+                    <h1>Atlas Pokédex</h1>
                 </div>
-                <div class="header-led"></div>
+                <div class="header-right">
+                    <button id="btnDarkMode" class="toolbar-btn header-btn" title="Modo oscuro">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M12 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
+                        </svg>
+                    </button>
+                    <div class="header-led"></div>
+                </div>
             </div>
             <div class="pokedex-content">
+
                 <div class="buscador-contenedor">
                     <input type="text" id="buscador" class="buscador" placeholder="Buscar por nombre o ID...">
                     <button id="btnClearSearch" class="btn-clear-search oculto" title="Limpiar búsqueda">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                            viewBox="0 0 16 16">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                            <path
+                                d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
                         </svg>
                     </button>
+                    <span class="search-hint">Ctrl+Espacio</span>
                 </div>
 
                 <div class="toolbar">
                     <div class="toolbar-left">
-                        <button id="btnFavoritos" class="toolbar-btn" title="Mostrar solo favoritos">&#9733; Favoritos</button>
+                        <button id="btnFavoritos" class="toolbar-btn" title="Mostrar solo favoritos">&#9733;
+                            Favoritos</button>
                         <button id="btnComparar" class="toolbar-btn" title="Modo comparación">&#8694; Comparar</button>
-                        <a href="items.html" class="toolbar-btn" id="btnItems" title="Objetos evolutivos">&#9881; Objetos</a>
+                        <button id="btnTeam" class="toolbar-btn" title="Creador de equipo">&#9876; Equipo</button>
+                        <a href="items.html" class="toolbar-btn" id="btnItems" title="Objetos evolutivos">&#9881;
+                            Objetos</a>
                     </div>
                     <div class="toolbar-right">
+                        <select id="regionSelect" class="toolbar-select">
+                            <option value="all">Región: Todas</option>
+                            <option value="kanto" selected>Región: Kanto</option>
+                            <option value="johto">Región: Johto</option>
+                            <option value="hoenn">Región: Hoenn</option>
+                            <option value="sinnoh">Región: Sinnoh</option>
+                            <option value="unova">Región: Unova</option>
+                            <option value="kalos">Región: Kalos</option>
+                            <option value="alola">Región: Alola</option>
+                            <option value="galar">Región: Galar</option>
+                            <option value="paldea">Región: Paldea</option>
+                        </select>
+                        <div id="regionInfoCard" class="region-info-card" aria-live="polite">
+                            <strong id="regionInfoText">Generación: Todas</strong>
+                        </div>
                         <select id="sortSelect" class="toolbar-select">
                             <option value="id">Orden: ID</option>
                             <option value="nombre">Orden: Nombre A-Z</option>
                             <option value="nombre-desc">Orden: Nombre Z-A</option>
                             <option value="tipo">Orden: Tipo</option>
-                        </select>
-                        <select id="genSelect" class="toolbar-select">
-                            <option value="0">Elige Generación</option>
-                            <option value="1">Generación I</option>
-                            <option value="2">Generación II</option>
-                            <option value="3">Generación III</option>
-                            <option value="4">Generación IV</option>
-                            <option value="5">Generación V</option>
-                            <option value="6">Generación VI</option>
-                            <option value="7">Generación VII</option>
-                            <option value="8">Generación VIII</option>
-                            <option value="9">Generación IX</option>
                         </select>
                     </div>
                 </div>
@@ -84,6 +104,49 @@
         <button id="btnCompareClose" class="compare-close">&times;</button>
     </div>
 
+    <div id="teamModal" class="modal oculto">
+        <div class="modal-contenido team-modal-content">
+            <div class="modal-header">
+                <div class="modal-header-led"></div>
+                <div class="modal-header-bar"></div>
+                <span class="cerrar" id="teamCerrar">&times;</span>
+            </div>
+            <div class="team-body">
+                <div class="team-manager">
+                    <select id="teamSelector" class="toolbar-select" style="flex:1;min-width:120px"></select>
+                    <button id="teamNewBtn" class="toolbar-btn" title="Nuevo equipo">+ Nuevo</button>
+                    <button id="teamRenameBtn" class="toolbar-btn" title="Renombrar equipo">&#9998;</button>
+                    <button id="teamDeleteBtn" class="toolbar-btn" title="Eliminar equipo" style="color:var(--accent-2)">&#128465;</button>
+                </div>
+                <div class="team-slots" id="teamSlots">
+                    <div class="team-slot" data-index="0"><span class="team-slot-placeholder">#1</span></div>
+                    <div class="team-slot" data-index="1"><span class="team-slot-placeholder">#2</span></div>
+                    <div class="team-slot" data-index="2"><span class="team-slot-placeholder">#3</span></div>
+                    <div class="team-slot" data-index="3"><span class="team-slot-placeholder">#4</span></div>
+                    <div class="team-slot" data-index="4"><span class="team-slot-placeholder">#5</span></div>
+                    <div class="team-slot" data-index="5"><span class="team-slot-placeholder">#6</span></div>
+                </div>
+                <div class="team-info" id="teamInfo">
+                    <p class="team-info-empty">Haz clic en un slot para añadir un Pokémon</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="teamPickerModal" class="modal oculto">
+        <div class="modal-contenido team-picker-content">
+            <div class="modal-header">
+                <div class="modal-header-led"></div>
+                <div class="modal-header-bar"></div>
+                <span class="cerrar" id="teamPickerCerrar">&times;</span>
+            </div>
+            <div class="team-picker-body">
+                <input type="text" id="teamPickerSearch" class="buscador" placeholder="Buscar Pokémon..." style="margin-bottom:14px">
+                <div id="teamPickerList" class="team-picker-list"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="compareModal" class="modal oculto">
         <div class="modal-contenido compare-modal-content">
             <div class="modal-header">
@@ -101,23 +164,32 @@
                 <div class="modal-header-led"></div>
                 <div class="modal-header-bar"></div>
                 <button id="btnPrevPokemon" class="nav-btn" title="Anterior">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="m3.86 8.753 5.482 4.796c.646.566 1.658.106 1.658-.753V3.204a1 1 0 0 0-1.659-.753l-5.48 4.796a1 1 0 0 0 0 1.506z"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
+                        viewBox="0 0 16 16">
+                        <path
+                            d="m3.86 8.753 5.482 4.796c.646.566 1.658.106 1.658-.753V3.204a1 1 0 0 0-1.659-.753l-5.48 4.796a1 1 0 0 0 0 1.506z" />
                     </svg>
                 </button>
                 <button id="cerrarModalBtn" class="cerrar-btn" title="Cerrar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                        <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
+                        viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                        <path
+                            d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
                     </svg>
                 </button>
                 <button id="btnNextPokemon" class="nav-btn" title="Siguiente">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
+                        viewBox="0 0 16 16">
+                        <path
+                            d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z" />
                     </svg>
                 </button>
             </div>
             <h2 id="nombreModal"></h2>
+            <div class="descripcion-pokemon">
+                <p id="descripcionModal"></p>
+            </div>
             <div class="modal-body">
                 <div class="modal-img-wrapper">
                     <img id="imgModal" alt="Pokemon">
@@ -130,7 +202,6 @@
                     <p><strong>Altura:</strong> <span id="alturaModal"></span> m</p>
                     <p><strong>Peso:</strong> <span id="pesoModal"></span> kg</p>
                     <p><strong>Exp. base:</strong> <span id="expModal"></span></p>
-                    <p><strong>Habilidades:</strong> <span id="habilidadesModal"></span></p>
                     <p><strong>Generación:</strong> <span id="genModal"></span></p>
                     <p><strong>Rareza:</strong> <span id="rarezaModal"></span></p>
                 </div>
@@ -143,8 +214,10 @@
                 </div>
             </div>
             <div class="habilidades-seccion">
-                <h3>Habilidades</h3>
-                <div id="habilidadesContainer"></div>
+                <button type="button" class="collapsible">Habilidades pasivas:</button>
+                <div class="content">
+                    <div id="habilidadesContainer"></div>
+                </div>
             </div>
             <div class="efectividad-seccion">
                 <h3>Debilidades y resistencias</h3>
@@ -159,19 +232,14 @@
                 <div id="formasContainer" class="formas-lista"></div>
             </div>
             <div class="movimientos-seccion">
-                <h3>Movimientos</h3>
-                <div id="movimientosContainer" class="movimientos-lista"></div>
-                <div id="moveDetalle" class="move-detalle oculto">
-                    <div class="move-detalle-titulo" id="moveDetalleTitulo"></div>
-                    <div class="move-detalle-desc" id="moveDetalleDesc"></div>
+                <button type="button" class="collapsible">Movimientos</button>
+                <div class="content">
+                    <div id="movimientosContainer" class="movimientos-container"></div>
                 </div>
             </div>
             <div class="cries-seccion">
                 <h3>Sonido</h3>
                 <div id="criesContainer"></div>
-            </div>
-            <div class="descripcion-pokemon">
-                <p id="descripcionModal"></p>
             </div>
         </div>
     </div>

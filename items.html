@@ -4,10 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Objetos Evolutivos</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>Atlas Pokédex | Objetos Evolutivos</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -16,34 +13,52 @@
         <div id="ContenedorPokemon" class="item-page">
             <div class="pokedex-header">
                 <div class="pokedex-logo">
-                    <div class="pokeball-icon"></div>
+                    <svg class="pokeball-icon" viewBox="0 0 100 100" width="40" height="40">
+                        <circle cx="50" cy="50" r="48" fill="#ef5350" stroke="rgba(24,32,42,0.12)" stroke-width="2"/>
+                        <path d="M2 50 A48 48 0 0 0 98 50" fill="#f4f5f7"/>
+                        <rect x="2" y="47" width="96" height="6" fill="rgba(24,32,42,0.12)"/>
+                        <circle cx="50" cy="50" r="16" fill="#f4f5f7" stroke="rgba(24,32,42,0.12)" stroke-width="2"/>
+                        <circle cx="50" cy="50" r="8" fill="#f4f5f7" stroke="rgba(24,32,42,0.15)" stroke-width="1.5"/>
+                    </svg>
                     <h1>Objetos Evolutivos</h1>
                 </div>
-                <div class="header-led"></div>
-            </div>
-            <div class="pokedex-content">
-                <div class="toolbar">
-                    <div class="toolbar-left">
-                        <a href="index.html" class="toolbar-btn" id="btnVolver">&#8592; Volver</a>
-                    </div>
-                </div>
-
-                <div class="buscador-contenedor buscador-contenedor-items">
-                    <input type="text" id="buscadorItems" class="buscador" placeholder="Buscar objeto evolutivo...">
-                    <button id="btnClearItemSearch" class="btn-clear-search oculto" title="Limpiar búsqueda">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                <div class="header-right">
+                    <button id="btnDarkModeItems" class="toolbar-btn header-btn" title="Modo oscuro">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M12 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
                         </svg>
                     </button>
-                    <div id="itemSuggestions" class="autocomplete-sugerencias oculto"></div>
+                    <div class="header-led"></div>
                 </div>
-                <div id="loadingItems" class="loading-spinner" style="display:none"></div>
-                <div id="itemCount" class="pokemon-count"></div>
-                <div id="galeriaItems" class="galeria-pokemon"></div>
-                <div id="noItemResults" class="no-resultados oculto">No se encontraron objetos</div>
-                <div id="resultadosItems" class="resultados-items" style="display:none"></div>
             </div>
+            <div class="pokedex-content">
+                <section class="page-hero page-hero-items">
+                    <div class="hero-copy">
+                        <span class="hero-eyebrow">Herramientas evolutivas</span>
+                        <h2>Busca objetos y revisa qué Pokémon los usan para evolucionar.</h2>
+                        <a href="index.html" class="toolbar-btn" id="btnVolver" style="margin-top:12px;display:inline-flex">&#8592; Volver</a>
+                    </div>
+                </section>
+
+            <div class="buscador-contenedor">
+                <input type="text" id="buscadorItems" class="buscador" placeholder="Buscar objeto evolutivo...">
+                <button id="btnClearItemSearch" class="btn-clear-search oculto" title="Limpiar búsqueda">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                        viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                        <path
+                            d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
+                    </svg>
+                </button>
+                <span class="search-hint">Ctrl+Espacio</span>
+                <div id="itemSuggestions" class="autocomplete-sugerencias oculto"></div>
+            </div>
+            <div id="loadingItems" class="loading-spinner" style="display:none"></div>
+            <div id="itemCount" class="pokemon-count"></div>
+            <div id="galeriaItems" class="galeria-pokemon"></div>
+            <div id="noItemResults" class="no-resultados oculto">No se encontraron objetos</div>
+            <div id="resultadosItems" class="resultados-items" style="display:none"></div>
+        </div>
         </div>
     </main>
 

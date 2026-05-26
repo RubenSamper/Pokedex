@@ -308,9 +308,7 @@ const GENERATION_LIMITS = [
 const STORAGE_KEY = "pokedex_fav";
 
 let galeriaPokemon = document.querySelector("#galeriaPokemon");
-let moveDetalle = document.querySelector("#moveDetalle");
-let moveDetalleTitulo = document.querySelector("#moveDetalleTitulo");
-let moveDetalleDesc = document.querySelector("#moveDetalleDesc");
+
 let modal = document.querySelector("#modalPokemon");
 let cerrar = document.querySelector("#cerrarModalBtn");
 let btnClearSearch = document.querySelector("#btnClearSearch");
@@ -320,8 +318,10 @@ let noResults = document.querySelector("#noResults");
 let pokemonCount = document.querySelector("#pokemonCount");
 let tipoFiltrosEl = document.querySelector("#tipoFiltros");
 let sortSelect = document.querySelector("#sortSelect");
-let genSelect = document.querySelector("#genSelect");
+let regionSelect = document.querySelector("#regionSelect");
+let regionInfoText = document.querySelector("#regionInfoText");
 let btnFavoritos = document.querySelector("#btnFavoritos");
+let btnDarkMode = document.querySelector("#btnDarkMode");
 let btnComparar = document.querySelector("#btnComparar");
 let compareBar = document.querySelector("#compareBar");
 let compareSlot1 = document.querySelector("#compareSlot1");
@@ -345,12 +345,14 @@ let tiempoBusqueda;
 let cacheHabilidades = {};
 let cacheMovimientos = {};
 let tipoFiltroActivo = null;
-let genFiltroActivo = 0;
+let regionFiltroActivo = "kanto";
 let sortBy = "id";
 let soloFavoritos = false;
 let modoComparar = false;
 let seleccionComparar = [];
 let favoritos = cargarFavoritos();
+let ultimosStats = null;
+
 
 function cargarFavoritos() {
     try {
@@ -362,6 +364,8 @@ function guardarFavoritos() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(favoritos));
 }
 
+
+
 function esFavorito(id) {
     return favoritos.includes(Number(id));
 }
@@ -369,13 +373,30 @@ function esFavorito(id) {
 function toggleFavorito(id) {
     let num = Number(id);
     let idx = favoritos.indexOf(num);
+    let añadido = false;
     if (idx > -1) {
         favoritos.splice(idx, 1);
     } else {
         favoritos.push(num);
+        añadido = true;
     }
     guardarFavoritos();
     actualizarFavEstrellas(num);
+    mostrarToast(añadido ? "Añadido a favoritos" : "Eliminado de favoritos");
+}
+
+function mostrarToast(mensaje) {
+    let toast = document.createElement("div");
+    toast.className = "toast";
+    toast.textContent = mensaje;
+    document.body.appendChild(toast);
+    requestAnimationFrame(function () {
+        toast.classList.add("toast-visible");
+    });
+    setTimeout(function () {
+        toast.classList.remove("toast-visible");
+        setTimeout(function () { toast.remove(); }, 300);
+    }, 2000);
 }
 
 function getGeneracion(id) {
@@ -385,15 +406,59 @@ function getGeneracion(id) {
     return 9;
 }
 
+function getRegion(id) {
+    switch (getGeneracion(id)) {
+        case 1: return "kanto";
+        case 2: return "johto";
+        case 3: return "hoenn";
+        case 4: return "sinnoh";
+        case 5: return "unova";
+        case 6: return "kalos";
+        case 7: return "alola";
+        case 8: return "galar";
+        case 9: return "paldea";
+        default: return "kanto";
+    }
+}
+
+function getRegionLabel(region) {
+    switch (region) {
+        case "kanto": return "Generación I";
+        case "johto": return "Generación II";
+        case "hoenn": return "Generación III";
+        case "sinnoh": return "Generación IV";
+        case "unova": return "Generación V";
+        case "kalos": return "Generación VI";
+        case "alola": return "Generación VII";
+        case "galar": return "Generación VIII";
+        case "paldea": return "Generación IX";
+        default: return "Generación: Todas";
+    }
+}
+
+function actualizarInfoRegion() {
+    if (!regionInfoText) return;
+    regionInfoText.textContent = regionFiltroActivo === "all" ? "Generación: Todas" : getRegionLabel(regionFiltroActivo);
+}
+
 window.addEventListener("load", cargarTodos);
 
 cerrar.addEventListener("click", cerrarModal);
 window.addEventListener("click", function (event) {
     if (event.target === modal) cerrarModal();
     if (event.target === compareModal) cerrarCompareModal();
+    if (event.target === teamModal) teamModal.classList.add("oculto");
+    if (event.target === teamPickerModal) teamPickerModal.classList.add("oculto");
 });
 document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") { cerrarModal(); cerrarCompareModal(); }
+    if (event.key === "Escape") { cerrarModal(); cerrarCompareModal(); teamModal.classList.add("oculto"); teamPickerModal.classList.add("oculto"); }
+    if (event.key === " " && event.ctrlKey) {
+        event.preventDefault();
+        buscador.value = "";
+        btnClearSearch.classList.add("oculto");
+        aplicarFiltros();
+        buscador.focus();
+    }
 });
 buscador.addEventListener("input", function () {
     btnClearSearch.classList.toggle("oculto", this.value === "");
@@ -414,8 +479,9 @@ sortSelect.addEventListener("change", function () {
     aplicarFiltros();
 });
 
-genSelect.addEventListener("change", function () {
-    genFiltroActivo = Number(this.value);
+regionSelect.addEventListener("change", function () {
+    regionFiltroActivo = this.value;
+    actualizarInfoRegion();
     aplicarFiltros();
 });
 
@@ -424,6 +490,21 @@ btnFavoritos.addEventListener("click", function () {
     this.classList.toggle("activo");
     aplicarFiltros();
 });
+
+btnDarkMode.addEventListener("click", function () {
+    document.documentElement.classList.toggle("dark-mode");
+    document.body.classList.toggle("dark-mode");
+    this.classList.toggle("activo");
+    localStorage.setItem("pokedex_darkmode", document.documentElement.classList.contains("dark-mode"));
+    if (ultimosStats) dibujarRadar(ultimosStats);
+});
+
+// Restore dark mode preference
+if (localStorage.getItem("pokedex_darkmode") === "true") {
+    document.documentElement.classList.add("dark-mode");
+    document.body.classList.add("dark-mode");
+    btnDarkMode.classList.add("activo");
+}
 
 btnComparar.addEventListener("click", function () {
     modoComparar = !modoComparar;
@@ -464,6 +545,21 @@ btnFavModal.addEventListener("click", function () {
     toggleFavorito(id);
 });
 
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.display === "block") {
+      content.style.display = "none";
+    } else {
+      content.style.display = "block";
+    }
+  });
+}
+
 function cerrarModal() {
     modal.classList.add("oculto");
 }
@@ -502,6 +598,8 @@ async function cargarTodos() {
         cargarSpritesEnLotes(todasLasUrls);
         actualizarContador();
         crearFiltrosTipo();
+        actualizarInfoRegion();
+        aplicarFiltros();
 
         let params = new URLSearchParams(window.location.search);
         let pokemonId = params.get("pokemon");
@@ -528,12 +626,227 @@ function extraerId(url) {
 
 const FALLBACK_SPRITE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Ccircle cx='40' cy='40' r='38' fill='%23ddd' stroke='%23999' stroke-width='2'/%3E%3Cpath d='M20 40h40M40 20v40' stroke='%23999' stroke-width='2'/%3E%3C/svg%3E";
 
+function formatearNombreHabilidad(nombre) {
+    if (!nombre) return "";
+    return (TRAD_HABILIDAD[nombre] || nombre.replace(/-/g, " ")).replace(/\b\w/g, function (letra) {
+        return letra.toUpperCase();
+    });
+}
+
+function renderizarHabilidadesCard(card, data) {
+    let habilidades = data.abilities || [];
+    let contenedor = card.querySelector(".pokemon-abilities");
+    if (!contenedor) {
+        contenedor = document.createElement("div");
+        contenedor.className = "pokemon-abilities";
+        card.insertBefore(contenedor, card.querySelector(".pokemon-id"));
+    }
+
+    if (!habilidades.length) {
+        contenedor.innerHTML = '<span class="ability-chip ability-chip-empty">Sin habilidades</span>';
+        return;
+    }
+
+    let visibles = habilidades.map(function (ability) {
+        let nombre = formatearNombreHabilidad(ability.ability.name);
+        return '<span class="ability-chip" title="' + nombre + (ability.is_hidden ? ' (oculta)' : '') + '">' + nombre + (ability.is_hidden ? ' <em>oculta</em>' : '') + '</span>';
+    }).join("");
+
+    contenedor.innerHTML = visibles;
+}
+
+function metodoLegible(metodo, nivel) {
+    switch (metodo) {
+        case "level-up": return nivel > 0 ? "Nv." + nivel : "Nv.";
+        case "machine": return "MT";
+        case "egg": return "Cría";
+        case "tutor": return "Tutor";
+        default: return metodo;
+    }
+}
+
+function seleccionarMovimientosRepresentativos(data) {
+    let all = (data.moves || []).map(function (m) {
+        // choose the smallest level if multiple
+        let detalle = (m.version_group_details || []).slice().sort(function (a, b) {
+            if (a.move_learn_method.name === b.move_learn_method.name) return a.level_learned_at - b.level_learned_at;
+            // prefer level-up, then machine, then tutor, then egg
+            const order = { "level-up": 0, "machine": 1, "tutor": 2, "egg": 3 };
+            return (order[a.move_learn_method.name] || 9) - (order[b.move_learn_method.name] || 9);
+        })[0] || null;
+        return {
+            name: m.move.name,
+            method: detalle ? detalle.move_learn_method.name : "unknown",
+            level: detalle ? detalle.level_learned_at : 0
+        };
+    });
+
+    // prefer moves learned by level (lowest level first), then machine, then tutor, then egg
+    all.sort(function (a, b) {
+        const prio = { "level-up": 0, "machine": 1, "tutor": 2, "egg": 3, "unknown": 9 };
+        if ((a.method === b.method)) {
+            return (a.level || 0) - (b.level || 0) || a.name.localeCompare(b.name);
+        }
+        return (prio[a.method] || 9) - (prio[b.method] || 9);
+    });
+
+    return all;
+}
+
+function renderizarMovimientosCard(card, data) {
+    let moves = seleccionarMovimientosRepresentativos(data);
+    let contenedor = card.querySelector(".pokemon-moves");
+    if (!contenedor) {
+        contenedor = document.createElement("div");
+        contenedor.className = "pokemon-moves";
+        card.insertBefore(contenedor, card.querySelector(".pokemon-id"));
+    }
+
+    if (!moves.length) {
+        contenedor.innerHTML = '<span class="move-chip move-chip-empty">Sin movimientos</span>';
+        return;
+    }
+
+    // show up to 4 representative moves
+    let reps = moves.slice(0, 4);
+    contenedor.innerHTML = "";
+    reps.forEach(function (mv) {
+        let span = document.createElement('span');
+        span.className = 'move-chip';
+        span.textContent = mv.name.replace(/-/g, ' ');
+        span.title = metodoLegible(mv.method, mv.level);
+        span.style.cursor = 'pointer';
+        span.addEventListener('click', function (e) {
+            e.stopPropagation();
+            toggleMoveDetail(card, span, mv);
+        });
+        contenedor.appendChild(span);
+
+        // replace with localized name if available
+        obtenerMovimiento(mv.name).then(function (info) {
+            if (info && info.nombre) span.textContent = info.nombre + (mv.method === 'level-up' && mv.level ? ' (' + mv.level + ')' : '');
+        }).catch(function () {});
+    });
+
+    let extra = moves.length - reps.length;
+    if (extra > 0) {
+        let more = document.createElement('span');
+        more.className = 'move-chip move-more';
+        more.textContent = '+' + extra + ' más';
+        contenedor.appendChild(more);
+
+        more.addEventListener('click', function (e) {
+            e.stopPropagation();
+            // toggle popup
+            let existing = card.querySelector('.moves-popup');
+            if (existing) { existing.remove(); return; }
+
+            let popup = document.createElement('div');
+            popup.className = 'moves-popup';
+            let ul = document.createElement('ul');
+            ul.className = 'moves-popup-list';
+            moves.forEach(function (mv) {
+                let li = document.createElement('li');
+                li.className = 'moves-popup-item';
+                li.textContent = mv.name.replace(/-/g, ' ');
+                let badge = document.createElement('span');
+                badge.className = 'moves-popup-badge';
+                badge.textContent = metodoLegible(mv.method, mv.level);
+                li.appendChild(badge);
+                ul.appendChild(li);
+
+                // localize name when available
+                obtenerMovimiento(mv.name).then(function (info) {
+                    if (info && info.nombre) li.firstChild.textContent = info.nombre + ' ';
+                }).catch(function () {});
+            });
+            popup.appendChild(ul);
+            card.appendChild(popup);
+
+            // close on outside click
+            setTimeout(function () {
+                document.addEventListener('click', function closerr(event) {
+                    if (!popup.contains(event.target) && !more.contains(event.target)) {
+                        popup.remove();
+                        document.removeEventListener('click', closerr);
+                    }
+                });
+            }, 10);
+        });
+    }
+}
+
+function toggleMoveDetail(card, chip, mv) {
+    // remove existing detail if present for this chip
+    let existing = card.querySelector('.move-detail');
+    if (existing && existing._anchor === chip) { existing.remove(); return; }
+    if (existing) existing.remove();
+
+    let popup = document.createElement('div');
+    popup.className = 'move-detail';
+    popup._anchor = chip;
+    popup.innerHTML = '<div class="move-detail-loading">Cargando...</div>';
+    card.appendChild(popup);
+
+    // position relative to chip
+    let left = chip.offsetLeft;
+    let top = chip.offsetTop + chip.offsetHeight + 8;
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+
+    obtenerMovimiento(mv.name).then(function (info) {
+        popup.innerHTML = '';
+        let title = document.createElement('h4');
+        title.textContent = info.nombre || mv.name;
+        popup.appendChild(title);
+
+        let meta = document.createElement('div');
+        meta.className = 'move-detail-meta';
+        if (info.type) {
+            let t = document.createElement('span'); t.className = 'move-meta-badge'; t.textContent = info.type.toUpperCase(); meta.appendChild(t);
+        }
+        if (info.power !== null && info.power !== undefined) {
+            let p = document.createElement('span'); p.className = 'move-meta-badge'; p.textContent = 'Pow: ' + info.power; meta.appendChild(p);
+        }
+        if (info.accuracy !== null && info.accuracy !== undefined) {
+            let a = document.createElement('span'); a.className = 'move-meta-badge'; a.textContent = 'Acc: ' + info.accuracy; meta.appendChild(a);
+        }
+        if (info.pp !== null && info.pp !== undefined) {
+            let pp = document.createElement('span'); pp.className = 'move-meta-badge'; pp.textContent = 'PP: ' + info.pp; meta.appendChild(pp);
+        }
+        popup.appendChild(meta);
+
+        let desc = document.createElement('p');
+        desc.className = 'move-detail-desc';
+        desc.textContent = info.descripcion || '';
+        popup.appendChild(desc);
+    }).catch(function () {
+        popup.innerHTML = '<div class="move-detail-error">Error cargando movimiento</div>';
+    });
+
+    // close on outside click
+    setTimeout(function () {
+        function onDocClick(ev) {
+            if (!popup.contains(ev.target) && ev.target !== chip) {
+                popup.remove();
+                document.removeEventListener('click', onDocClick);
+            }
+        }
+        document.addEventListener('click', onDocClick);
+    }, 10);
+}
+
 function crearCard(id, nombre) {
     let div = document.createElement("div");
     div.className = "pokemon-item";
     div.dataset.id = id;
     div.dataset.name = nombre;
     div.dataset.gen = getGeneracion(Number(id));
+    div.dataset.region = getRegion(Number(id));
+
+    let check = document.createElement("span");
+    check.className = "pokemon-compare-check";
+    div.appendChild(check);
 
     let img = document.createElement("img");
     img.alt = nombre;
@@ -541,38 +854,14 @@ function crearCard(id, nombre) {
     img.src = FALLBACK_SPRITE;
     div.appendChild(img);
 
-    let favBtn = document.createElement("button");
-    favBtn.className = "pokemon-fav" + (esFavorito(id) ? " fav-activo" : "");
-    favBtn.dataset.id = id;
-    favBtn.textContent = "\u2605";
-    favBtn.title = "Añadir a favoritos";
-    favBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        toggleFavorito(id);
-    });
-    div.appendChild(favBtn);
-
-    let checkComp = document.createElement("div");
-    checkComp.className = "pokemon-compare-check";
-    checkComp.addEventListener("click", function (e) {
-        e.stopPropagation();
-        toggleComparar(div, id, nombre);
-    });
-    div.appendChild(checkComp);
-
     let p = document.createElement("p");
     p.textContent = nombre;
     div.appendChild(p);
 
-    let idLabel = document.createElement("span");
-    idLabel.className = "pokemon-id";
-    idLabel.textContent = "#" + id;
-    div.appendChild(idLabel);
-
-    div.addEventListener("click", function () {
+    div.addEventListener("click", function (e) {
+        if (e.target.closest(".pokemon-compare-check")) return;
         if (modoComparar) {
-            let check = this.querySelector(".pokemon-compare-check");
-            check.click();
+            toggleComparar(this, Number(this.dataset.id), this.dataset.name);
             return;
         }
         let cryUrl = this.dataset.cryUrl;
@@ -582,6 +871,11 @@ function crearCard(id, nombre) {
             audio.play().catch(function () {});
         }
         abrirModal(parseInt(this.dataset.id));
+    });
+
+    check.addEventListener("click", function (e) {
+        e.stopPropagation();
+        toggleComparar(div, Number(div.dataset.id), div.dataset.name);
     });
 
     return div;
@@ -720,26 +1014,6 @@ async function cargarSpritesEnLotes(lista) {
                     });
                     return fetch("https://pokeapi.co/api/v2/pokemon-species/" + id + "/");
                 })
-                .then(function (r) { return r.json(); })
-                .then(function (species) {
-                    if (species.is_legendary || species.is_mythical || esPseudoLegendario(pokemonDataCache[id])) {
-                        cards.forEach(function (card) {
-                            let badge = document.createElement("span");
-                            badge.className = "pokemon-rareza-badge";
-                            if (species.is_legendary) {
-                                badge.textContent = "\u2605";
-                                badge.title = "Legendario";
-                            } else if (species.is_mythical) {
-                                badge.textContent = "\u2728";
-                                badge.title = "M\u00edtico";
-                            } else {
-                                badge.textContent = "\u26A1";
-                                badge.title = "Pseudolegendario";
-                            }
-                            card.appendChild(badge);
-                        });
-                    }
-                })
                 .catch(function () {});
         });
         await Promise.allSettled(promesas);
@@ -779,7 +1053,7 @@ function aplicarFiltros() {
     todosLosPokemon.forEach(function (item) {
         let nombre = item.dataset.name.toLowerCase();
         let id = item.dataset.id;
-        let genCard = Number(item.dataset.gen);
+        let regionCard = item.dataset.region;
 
         let coincideTexto = texto === "" || nombre.includes(texto) || id.includes(texto);
 
@@ -788,9 +1062,9 @@ function aplicarFiltros() {
             coincideTipo = item.dataset.types.split(",").indexOf(tipoFiltroActivo) > -1;
         }
 
-        let coincideGen = true;
-        if (genFiltroActivo > 0) {
-            coincideGen = genCard === genFiltroActivo;
+        let coincideRegion = true;
+        if (regionFiltroActivo !== "all") {
+            coincideRegion = regionCard === regionFiltroActivo;
         }
 
         let coincideFav = true;
@@ -798,13 +1072,14 @@ function aplicarFiltros() {
             coincideFav = esFavorito(Number(id));
         }
 
-        var mostrar = coincideTexto && coincideTipo && coincideGen && coincideFav;
+        var mostrar = coincideTexto && coincideTipo && coincideRegion && coincideFav;
         item.style.display = mostrar ? "" : "none";
     });
 
     let visible = galeriaPokemon.querySelectorAll('.pokemon-item[style*="display: none"]');
     let algunVisible = todosLosPokemon.length > visible.length;
-    if (texto !== "" && !algunVisible) {
+    let hayFiltrosActivos = texto !== "" || tipoFiltroActivo || regionFiltroActivo !== "all" || soloFavoritos;
+    if (hayFiltrosActivos && !algunVisible) {
         noResults.classList.remove("oculto");
     } else {
         noResults.classList.add("oculto");
@@ -891,7 +1166,11 @@ function obtenerMovimiento(nombre) {
             }
             cacheMovimientos[nombre] = {
                 nombre: nombreEs ? nombreEs.name : nombre,
-                descripcion: efecto ? efecto.flavor_text.replace(/[\n\f]/g, " ") : "Sin descripción."
+                descripcion: efecto ? efecto.flavor_text.replace(/[\n\f]/g, " ") : "Sin descripción.",
+                type: data.type ? data.type.name : null,
+                power: data.power !== null ? data.power : null,
+                accuracy: data.accuracy !== null ? data.accuracy : null,
+                pp: data.pp !== null ? data.pp : null
             };
             return cacheMovimientos[nombre];
         })
@@ -968,30 +1247,34 @@ async function abrirModal(idPokemon) {
         });
         let habilidadesData = await Promise.all(promesasHabilidades);
 
-        let nombresHabilidades = habilidadesData.map(function (h, i) {
-            return h.nombre + (data.abilities[i].is_hidden ? " (oculta)" : "");
-        }).join(", ");
-        document.querySelector("#habilidadesModal").textContent = nombresHabilidades;
-
         let habilidadesContainer = document.querySelector("#habilidadesContainer");
         habilidadesContainer.innerHTML = "";
 
         habilidadesData.forEach(function (h, i) {
-            let item = document.createElement("div");
-            item.className = "habilidad-item";
+            let btn = document.createElement("button");
+            btn.className = "collapsible";
+            btn.textContent = h.nombre + (data.abilities[i].is_hidden ? " (oculta)" : "");
 
-            let titulo = document.createElement("div");
-            titulo.className = "habilidad-titulo";
-            titulo.textContent = h.nombre + (data.abilities[i].is_hidden ? " (oculta)" : "");
+            let contentDiv = document.createElement("div");
+            contentDiv.className = "content";
+            contentDiv.textContent = h.descripcion;
 
-            let desc = document.createElement("div");
-            desc.className = "habilidad-desc";
-            desc.textContent = h.descripcion;
-
-            item.appendChild(titulo);
-            item.appendChild(desc);
-            habilidadesContainer.appendChild(item);
+            habilidadesContainer.appendChild(btn);
+            habilidadesContainer.appendChild(contentDiv);
         });
+
+        var habilidadBtns = habilidadesContainer.querySelectorAll(".collapsible");
+        for (var hi = 0; hi < habilidadBtns.length; hi++) {
+            habilidadBtns[hi].addEventListener("click", function () {
+                this.classList.toggle("active");
+                var content = this.nextElementSibling;
+                if (content.style.display === "block") {
+                    content.style.display = "none";
+                } else {
+                    content.style.display = "block";
+                }
+            });
+        }
 
         let statsContainer = document.querySelector("#statsContainer");
         statsContainer.innerHTML = "";
@@ -1037,6 +1320,7 @@ async function abrirModal(idPokemon) {
         });
 
         dibujarRadar(data.stats);
+        ultimosStats = data.stats;
 
         cargarEvoluciones(especieData);
         cargarFormas(especieData);
@@ -1045,21 +1329,58 @@ async function abrirModal(idPokemon) {
         let movimientosContainer = document.querySelector("#movimientosContainer");
         movimientosContainer.innerHTML = "";
 
-        let chips = [];
-        data.moves.slice(0, 24).forEach(function (m) {
-            let chip = document.createElement("span");
-            chip.className = "movimiento-chip";
-            chip.textContent = m.move.name.replace(/-/g, " ");
-            chip.dataset.moveName = m.move.name;
-            chip.addEventListener("click", function (e) {
-                e.stopPropagation();
-                mostrarMovimiento(this.dataset.moveName);
-            });
-            movimientosContainer.appendChild(chip);
-            chips.push(chip);
+        data.moves.forEach(function (m) {
+            let btn = document.createElement("button");
+            btn.className = "collapsible";
+            btn.textContent = m.move.name.replace(/-/g, " ");
+            btn.dataset.moveName = m.move.name;
+
+            let contentDiv = document.createElement("div");
+            contentDiv.className = "content";
+            contentDiv.innerHTML = '<div class="move-loading">Cargando...</div>';
+
+            movimientosContainer.appendChild(btn);
+            movimientosContainer.appendChild(contentDiv);
         });
 
-        traducirChipsMovimiento(chips);
+        var collBtns = movimientosContainer.querySelectorAll(".collapsible");
+        for (var ci = 0; ci < collBtns.length; ci++) {
+            collBtns[ci].addEventListener("click", function () {
+                this.classList.toggle("active");
+                var content = this.nextElementSibling;
+                if (content.style.display === "block") {
+                    content.style.display = "none";
+                } else {
+                    content.style.display = "block";
+                }
+            });
+        }
+
+        var moveBtns = movimientosContainer.querySelectorAll(".collapsible");
+        moveBtns.forEach(function (btn) {
+            var name = btn.dataset.moveName;
+            obtenerMovimiento(name).then(function (info) {
+                btn.textContent = info.nombre;
+                var content = btn.nextElementSibling;
+                var html = "";
+                if (info.type) {
+                    var color = COLORES_TIPO[info.type] || "#999";
+                    var tipoEs = TRAD_TIPO[info.type] || info.type;
+                    html += '<span class="tipo-badge" style="background:' + color + '">' + tipoEs + "</span> ";
+                }
+                if (info.power !== null && info.power !== undefined) {
+                    html += '<span class="move-meta-badge">Potencia: ' + info.power + "</span> ";
+                }
+                if (info.accuracy !== null && info.accuracy !== undefined) {
+                    html += '<span class="move-meta-badge">Precisión: ' + info.accuracy + "</span> ";
+                }
+                if (info.pp !== null && info.pp !== undefined) {
+                    html += '<span class="move-meta-badge">PP: ' + info.pp + "</span>";
+                }
+                html += '<p class="move-detail-desc" style="margin-top:8px;color:var(--muted);font-size:0.85rem">' + (info.descripcion || "") + "</p>";
+                content.innerHTML = html;
+            });
+        });
 
         let criesContainer = document.querySelector("#criesContainer");
         criesContainer.innerHTML = "";
@@ -1089,7 +1410,7 @@ async function abrirModal(idPokemon) {
         }
         document.querySelector("#descripcionModal").textContent = descripcion;
         modal.classList.remove("oculto");
-        moveDetalle.classList.add("oculto");
+
     } catch (error) {
         console.log("Error cargando datos del pokemon:", error);
         document.querySelector("#descripcionModal").textContent = "Error al cargar los datos.";
@@ -1116,6 +1437,7 @@ function dibujarRadar(stats) {
     let radio = 80;
     let numStats = 6;
     let anguloInicio = -Math.PI / 2;
+    let oscuro = document.documentElement.classList.contains("dark-mode");
 
     ctx.clearRect(0, 0, w, h);
 
@@ -1132,7 +1454,7 @@ function dibujarRadar(stats) {
             if (i === 0) ctx.moveTo(p.x, p.y);
             else ctx.lineTo(p.x, p.y);
         }
-        ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        ctx.strokeStyle = oscuro ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)";
         ctx.lineWidth = 1;
         ctx.stroke();
     }
@@ -1142,7 +1464,7 @@ function dibujarRadar(stats) {
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(p.x, p.y);
-        ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        ctx.strokeStyle = oscuro ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)";
         ctx.stroke();
     }
 
@@ -1156,14 +1478,14 @@ function dibujarRadar(stats) {
         else ctx.lineTo(p.x, p.y);
     }
     ctx.closePath();
-    ctx.fillStyle = "rgba(204, 0, 0, 0.2)";
+    ctx.fillStyle = oscuro ? "rgba(239, 83, 80, 0.25)" : "rgba(204, 0, 0, 0.2)";
     ctx.fill();
-    ctx.strokeStyle = "#cc0000";
+    ctx.strokeStyle = oscuro ? "#EF5350" : "#cc0000";
     ctx.lineWidth = 2;
     ctx.stroke();
 
     ctx.font = "bold 8px 'Press Start 2P', monospace";
-    ctx.fillStyle = "#333";
+    ctx.fillStyle = oscuro ? "#c8cad0" : "#333";
     ctx.textAlign = "center";
     var labels = ["PS", "ATAQUE", "DEFENSA", "AT.ESP", "DEF.ESP", "VEL."];
     for (let i = 0; i < numStats; i++) {
@@ -1270,25 +1592,7 @@ function cargarFormas(especieData) {
     });
 }
 
-function mostrarMovimiento(nombre) {
-    obtenerMovimiento(nombre).then(function (info) {
-        moveDetalleTitulo.textContent = info.nombre;
-        moveDetalleDesc.textContent = info.descripcion;
-        moveDetalle.classList.remove("oculto");
-    });
-}
 
-async function traducirChipsMovimiento(chips) {
-    for (let i = 0; i < chips.length; i += 5) {
-        let lote = chips.slice(i, i + 5);
-        let promesas = lote.map(function (chip) {
-            return obtenerMovimiento(chip.dataset.moveName).then(function (info) {
-                chip.textContent = info.nombre;
-            });
-        });
-        await Promise.allSettled(promesas);
-    }
-}
 
 function obtenerSprite(data, shiny) {
     var key = shiny ? "front_shiny" : "front_default";
@@ -1478,6 +1782,390 @@ function formatearDetalleEvo(detalle) {
 function esPseudoLegendario(data) {
     let bst = data.stats.reduce(function (sum, s) { return sum + s.base_stat; }, 0);
     return bst === 600;
+}
+
+// Team Builder
+
+let btnTeam = document.querySelector("#btnTeam");
+let teamModal = document.querySelector("#teamModal");
+let teamCerrar = document.querySelector("#teamCerrar");
+let teamSlots = document.querySelector("#teamSlots");
+let teamInfo = document.querySelector("#teamInfo");
+let teamPickerModal = document.querySelector("#teamPickerModal");
+let teamPickerCerrar = document.querySelector("#teamPickerCerrar");
+let teamPickerSearch = document.querySelector("#teamPickerSearch");
+let teamPickerList = document.querySelector("#teamPickerList");
+let teamSelector = document.querySelector("#teamSelector");
+let teamNewBtn = document.querySelector("#teamNewBtn");
+let teamRenameBtn = document.querySelector("#teamRenameBtn");
+let teamDeleteBtn = document.querySelector("#teamDeleteBtn");
+let equipoSlotSeleccionado = null;
+let equiposGuardados = {};
+let equipoActivo = null;
+
+function cargarEquipos() {
+    let oldData = localStorage.getItem("pokedex_team");
+    if (oldData) {
+        try {
+            let arr = JSON.parse(oldData);
+            if (Array.isArray(arr)) {
+                equiposGuardados = { "Equipo 1": arr };
+                equipoActivo = "Equipo 1";
+                guardarEquipos();
+                localStorage.removeItem("pokedex_team");
+                return;
+            }
+        } catch {}
+    }
+    try {
+        let data = JSON.parse(localStorage.getItem("pokedex_teams")) || {};
+        equiposGuardados = data.teams || {};
+        equipoActivo = data.activeTeam || null;
+    } catch { 
+        equiposGuardados = {};
+        equipoActivo = null;
+    }
+    if (Object.keys(equiposGuardados).length === 0) {
+        equiposGuardados = { "Equipo 1": [] };
+        equipoActivo = "Equipo 1";
+        guardarEquipos();
+    }
+    if (!equipoActivo || !equiposGuardados[equipoActivo]) {
+        equipoActivo = Object.keys(equiposGuardados)[0];
+    }
+}
+
+function guardarEquipos() {
+    localStorage.setItem("pokedex_teams", JSON.stringify({ teams: equiposGuardados, activeTeam: equipoActivo }));
+}
+
+function getEquipo() {
+    return equiposGuardados[equipoActivo] || [];
+}
+
+cargarEquipos();
+
+btnTeam.addEventListener("click", function () {
+    renderizarSelectorEquipos();
+    renderizarEquipo();
+    teamModal.classList.remove("oculto");
+});
+
+teamCerrar.addEventListener("click", function () {
+    teamModal.classList.add("oculto");
+});
+
+teamPickerCerrar.addEventListener("click", function () {
+    teamPickerModal.classList.add("oculto");
+});
+
+teamPickerSearch.addEventListener("input", function () {
+    renderizarPickerList(this.value.toLowerCase().trim());
+});
+
+teamSelector.addEventListener("change", function () {
+    equipoActivo = this.value;
+    guardarEquipos();
+    renderizarEquipo();
+});
+
+teamNewBtn.addEventListener("click", function () {
+    let max = 0;
+    Object.keys(equiposGuardados).forEach(function (k) {
+        let m = k.match(/^Equipo (\d+)$/);
+        if (m) max = Math.max(max, parseInt(m[1]));
+    });
+    let nombre = "Equipo " + (max + 1);
+    equiposGuardados[nombre] = [];
+    equipoActivo = nombre;
+    guardarEquipos();
+    renderizarSelectorEquipos();
+    renderizarEquipo();
+});
+
+teamDeleteBtn.addEventListener("click", function () {
+    let keys = Object.keys(equiposGuardados);
+    if (keys.length <= 1) {
+        mostrarToast("Debe haber al menos un equipo");
+        return;
+    }
+    delete equiposGuardados[equipoActivo];
+    equipoActivo = Object.keys(equiposGuardados)[0];
+    guardarEquipos();
+    renderizarSelectorEquipos();
+    renderizarEquipo();
+});
+
+teamRenameBtn.addEventListener("click", function () {
+    let nuevo = prompt("Nuevo nombre para el equipo:", equipoActivo);
+    if (!nuevo || nuevo.trim() === "" || nuevo.trim() === equipoActivo) return;
+    nuevo = nuevo.trim();
+    if (equiposGuardados[nuevo]) {
+        mostrarToast("Ya existe un equipo con ese nombre");
+        return;
+    }
+    equiposGuardados[nuevo] = equiposGuardados[equipoActivo];
+    delete equiposGuardados[equipoActivo];
+    equipoActivo = nuevo;
+    guardarEquipos();
+    renderizarSelectorEquipos();
+    renderizarEquipo();
+});
+
+teamSlots.addEventListener("click", function (e) {
+    let slot = e.target.closest(".team-slot");
+    if (!slot) return;
+    let index = parseInt(slot.dataset.index);
+    let eq = getEquipo();
+    if (e.target.closest(".team-slot-remove")) {
+        eq.splice(index, 1);
+        guardarEquipos();
+        renderizarEquipo();
+        return;
+    }
+    equipoSlotSeleccionado = index;
+    teamPickerSearch.value = "";
+    renderizarPickerList("");
+    teamPickerModal.classList.remove("oculto");
+    teamPickerSearch.focus();
+});
+
+function renderizarSelectorEquipos() {
+    teamSelector.innerHTML = "";
+    Object.keys(equiposGuardados).forEach(function (nombre) {
+        let opt = document.createElement("option");
+        opt.value = nombre;
+        opt.textContent = nombre;
+        if (nombre === equipoActivo) opt.selected = true;
+        teamSelector.appendChild(opt);
+    });
+}
+
+function renderizarEquipo() {
+    let eq = getEquipo();
+    let slots = teamSlots.querySelectorAll(".team-slot");
+    slots.forEach(function (slot, i) {
+        let pkm = eq[i];
+        if (pkm) {
+            slot.classList.add("ocupado");
+            let id = pkm.id;
+            slot.innerHTML = "";
+            let img = document.createElement("img");
+            img.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/" + id + ".png";
+            img.onerror = function () { this.src = FALLBACK_SPRITE; };
+            slot.appendChild(img);
+            let nombre = document.createElement("span");
+            nombre.className = "team-slot-nombre";
+            nombre.textContent = pkm.nombre;
+            slot.appendChild(nombre);
+            if (pkm.tipos) {
+                let tiposDiv = document.createElement("div");
+                tiposDiv.className = "team-slot-tipos";
+                pkm.tipos.forEach(function (t) {
+                    let badge = document.createElement("span");
+                    badge.className = "tipo-badge";
+                    badge.style.background = COLORES_TIPO[t] || "#999";
+                    badge.textContent = TRAD_TIPO[t] || t;
+                    tiposDiv.appendChild(badge);
+                });
+                slot.appendChild(tiposDiv);
+            }
+            let remove = document.createElement("span");
+            remove.className = "team-slot-remove";
+            remove.textContent = "\u00D7";
+            remove.title = "Quitar del equipo";
+            slot.appendChild(remove);
+        } else {
+            slot.classList.remove("ocupado");
+            slot.innerHTML = '<span class="team-slot-placeholder">#' + (i + 1) + "</span>";
+        }
+    });
+    actualizarAnalisisEquipo();
+}
+
+function renderizarPickerList(filtro) {
+    let eq = getEquipo();
+    teamPickerList.innerHTML = "";
+    let items = todosLosPokemon.filter(function (card) {
+        if (eq.length >= 6) return false;
+        let nombre = card.dataset.name.toLowerCase();
+        let id = card.dataset.id;
+        if (filtro && !nombre.includes(filtro) && !id.includes(filtro)) return false;
+        return true;
+    }).slice(0, 50);
+    if (items.length === 0) {
+        teamPickerList.innerHTML = '<div class="no-resultados" style="padding:20px">No se encontraron Pokémon</div>';
+        return;
+    }
+    items.forEach(function (card) {
+        let id = card.dataset.id;
+        let item = document.createElement("div");
+        item.className = "team-picker-item";
+        item.dataset.id = id;
+        let img = document.createElement("img");
+        img.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/" + id + ".png";
+        img.onerror = function () { this.src = FALLBACK_SPRITE; };
+        item.appendChild(img);
+        let nameSpan = document.createElement("span");
+        nameSpan.className = "picker-name";
+        nameSpan.textContent = card.dataset.name;
+        item.appendChild(nameSpan);
+        let idSpan = document.createElement("span");
+        idSpan.className = "picker-id";
+        idSpan.textContent = "#" + id;
+        item.appendChild(idSpan);
+        item.addEventListener("click", function () {
+            agregarAlEquipo(id, card.dataset.name);
+        });
+        teamPickerList.appendChild(item);
+    });
+}
+
+function agregarAlEquipo(id, nombre) {
+    let eq = getEquipo();
+    if (eq.length >= 6) return;
+    let data = pokemonDataCache[id];
+    let tipos = [];
+    if (data && data.types) {
+        tipos = data.types.map(function (t) { return t.type.name; });
+    }
+    if (equipoSlotSeleccionado !== null && equipoSlotSeleccionado < eq.length) {
+        eq[equipoSlotSeleccionado] = { id: Number(id), nombre: nombre, tipos: tipos };
+    } else {
+        eq.push({ id: Number(id), nombre: nombre, tipos: tipos });
+    }
+    guardarEquipos();
+    teamPickerModal.classList.add("oculto");
+    renderizarEquipo();
+}
+
+function actualizarAnalisisEquipo() {
+    let eq = getEquipo();
+    if (eq.length === 0) {
+        teamInfo.innerHTML = '<p class="team-info-empty">Haz clic en un slot para a\u00F1adir un Pok\u00E9mon</p>';
+        return;
+    }
+
+    let tiposEquipo = [];
+    eq.forEach(function (pkm) {
+        (pkm.tipos || []).forEach(function (t) {
+            if (tiposEquipo.indexOf(t) === -1) tiposEquipo.push(t);
+        });
+    });
+
+    let ofensivo = calcularCoberturaOfensiva(tiposEquipo);
+    let defensivo = calcularCoberturaDefensiva(tiposEquipo);
+
+    let html = '<div class="team-coverage-grid">';
+
+    html += '<div class="team-coverage-section">';
+    html += '<h4 style="color:var(--success)">\u2714 Ofensivo: supereficaz contra</h4>';
+    html += '<div class="team-coverage-tags">';
+    ofensivo.superEficaces.forEach(function (t) {
+        let c = COLORES_TIPO[t] || "#999";
+        let n = TRAD_TIPO[t] || t;
+        html += '<span class="tipo-badge super-effective" style="background:' + c + '">' + n + "</span>";
+    });
+    if (ofensivo.superEficaces.length === 0) html += '<span style="color:var(--muted);font-size:0.85rem">Ninguno</span>';
+    html += "</div></div>";
+
+    html += '<div class="team-coverage-section">';
+    html += '<h4 style="color:#c62828">\u2718 Defensivo: debil contra</h4>';
+    html += '<div class="team-coverage-tags">';
+    defensivo.debil.forEach(function (t) {
+        let c = COLORES_TIPO[t] || "#999";
+        let n = TRAD_TIPO[t] || t;
+        html += '<span class="tipo-badge not-very" style="background:' + c + '">' + n + "</span>";
+    });
+    if (defensivo.debil.length === 0) html += '<span style="color:var(--muted);font-size:0.85rem">Ninguno</span>';
+    html += "</div></div>";
+
+    html += '<div class="team-coverage-section">';
+    html += '<h4 style="color:var(--success)">\u2714 Defensivo: resistente contra</h4>';
+    html += '<div class="team-coverage-tags">';
+    defensivo.resistente.forEach(function (t) {
+        let c = COLORES_TIPO[t] || "#999";
+        let n = TRAD_TIPO[t] || t;
+        html += '<span class="tipo-badge" style="background:' + c + '">' + n + "</span>";
+    });
+    if (defensivo.resistente.length === 0) html += '<span style="color:var(--muted);font-size:0.85rem">Ninguno</span>';
+    html += "</div></div>";
+
+    html += '<div class="team-coverage-section">';
+    html += '<h4 style="color:#7b1fa2">\u2716 Defensivo: inmune contra</h4>';
+    html += '<div class="team-coverage-tags">';
+    defensivo.inmune.forEach(function (t) {
+        let c = COLORES_TIPO[t] || "#999";
+        let n = TRAD_TIPO[t] || t;
+        html += '<span class="tipo-badge immune" style="background:' + c + '">' + n + "</span>";
+    });
+    if (defensivo.inmune.length === 0) html += '<span style="color:var(--muted);font-size:0.85rem">Ninguno</span>';
+    html += "</div></div>";
+
+    html += "</div>";
+
+    html += '<div class="team-pros-cons">';
+    if (ofensivo.superEficaces.length >= 6) {
+        html += '<p class="pro">\u2714 Buena cobertura ofensiva: tu equipo cubre ' + ofensivo.superEficaces.length + " tipos</p>";
+    } else {
+        html += '<p class="con">\u2718 Cobertura ofensiva limitada: solo cubre ' + ofensivo.superEficaces.length + " tipos</p>";
+    }
+    if (defensivo.debil.length <= 3) {
+        html += '<p class="pro">\u2714 Defensivamente s\u00F3lido: solo ' + defensivo.debil.length + " debilidad" + (defensivo.debil.length === 1 ? "" : "es") + "</p>";
+    } else {
+        html += '<p class="con">\u2718 Muchas debilidades: ' + defensivo.debil.length + ' tipos te golpean fuerte</p>';
+    }
+    if (defensivo.inmune.length > 0) {
+        html += '<p class="pro">\u2714 Inmunidades: ' + defensivo.inmune.length + ' tipo' + (defensivo.inmune.length === 1 ? '' : 's') + ' no te afectan</p>';
+    }
+    html += "</div>";
+
+    teamInfo.innerHTML = html;
+}
+
+function calcularCoberturaOfensiva(tiposEquipo) {
+    let superEficaces = [];
+    for (let defensor in TYPE_CHART_DEF) {
+        for (let i = 0; i < tiposEquipo.length; i++) {
+            let atacante = tiposEquipo[i];
+            let def = TYPE_CHART_DEF[defensor];
+            if (def.weak.indexOf(atacante) > -1) {
+                if (superEficaces.indexOf(defensor) === -1) superEficaces.push(defensor);
+                break;
+            }
+        }
+    }
+    superEficaces.sort();
+    return { superEficaces: superEficaces };
+}
+
+function calcularCoberturaDefensiva(tiposEquipo) {
+    let multiplicadores = {};
+    for (let atacante in TYPE_CHART_DEF) {
+        let mult = 1;
+        tiposEquipo.forEach(function (tipoPokemon) {
+            var def = TYPE_CHART_DEF[tipoPokemon];
+            if (def.immune.indexOf(atacante) > -1) mult = 0;
+            if (mult !== 0) {
+                if (def.weak.indexOf(atacante) > -1) mult *= 2;
+                if (def.resist.indexOf(atacante) > -1) mult *= 0.5;
+            }
+        });
+        multiplicadores[atacante] = mult;
+    }
+    let debil = [];
+    let resistente = [];
+    let inmune = [];
+    for (let tipo in multiplicadores) {
+        let mult = multiplicadores[tipo];
+        if (mult >= 2) debil.push(tipo);
+        else if (mult <= 0.5 && mult > 0) resistente.push(tipo);
+        else if (mult === 0) inmune.push(tipo);
+    }
+    debil.sort();
+    resistente.sort();
+    inmune.sort();
+    return { debil: debil, resistente: resistente, inmune: inmune };
 }
 
 

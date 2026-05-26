@@ -1,0 +1,32 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - heading "Atlas Pokédex" [level=1] [ref=e12]
+    - generic [ref=e14]:
+      - textbox "Buscar por nombre o ID..." [ref=e16]
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - button "★ Favoritos" [ref=e19]
+          - button "⇶ Comparar" [ref=e20]
+          - button "⚔ Equipo" [ref=e21]
+          - link "⚙ Objetos" [ref=e22] [cursor=pointer]:
+            - /url: items.html
+        - generic [ref=e23]:
+          - combobox [ref=e24] [cursor=pointer]:
+            - 'option "Región: Todas" [selected]'
+            - 'option "Región: Kanto"'
+            - 'option "Región: Johto"'
+            - 'option "Región: Hoenn"'
+            - 'option "Región: Sinnoh"'
+            - 'option "Región: Unova"'
+            - 'option "Región: Kalos"'
+            - 'option "Región: Alola"'
+            - 'option "Región: Galar"'
+            - 'option "Región: Paldea"'
+          - strong [ref=e26]: "Generación: Todas"
+          - combobox [ref=e27] [cursor=pointer]:
+            - 'option "Orden: ID" [selected]'
+            - 'option "Orden: Nombre A-Z"'
+            - 'option "Orden: Nombre Z-A"'
+            - 'option "Orden: Tipo"'

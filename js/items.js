@@ -28,12 +28,14 @@ const TRAD_OBJETOS = {
 const FALLBACK_SPRITE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Crect x='15' y='28' width='50' height='38' rx='6' fill='%23e0d8c8' stroke='%23999' stroke-width='2'/%3E%3Cpath d='M25 28L30 12h20l5 16' fill='%23f5f0e0' stroke='%23999' stroke-width='2'/%3E%3Ccircle cx='30' cy='48' r='4' fill='%23ddd' stroke='%23999' stroke-width='1.5'/%3E%3Ccircle cx='50' cy='48' r='4' fill='%23ddd' stroke='%23999' stroke-width='1.5'/%3E%3Crect x='34' y='40' width='12' height='16' rx='2' fill='%23ddd' stroke='%23999' stroke-width='1'/%3E%3C/svg%3E";
 
 const ITEM_SPRITE_BASE = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/";
+const ITEM_RESULTS_LIMIT = 8;
 
 let itemEvoMap = null;
 let itemSearchTimeout;
 let itemSuggestionIndex = -1;
 let todosLosItems = [];
 let itemActivo = null;
+let itemDetailsCache = {};
 
 let buscadorItems = document.querySelector("#buscadorItems");
 let btnClearItemSearch = document.querySelector("#btnClearItemSearch");
@@ -44,10 +46,44 @@ let loadingItems = document.querySelector("#loadingItems");
 let noItemResults = document.querySelector("#noItemResults");
 let itemCount = document.querySelector("#itemCount");
 
+function normalizarTexto(texto) {
+    return (texto || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
+function obtenerNombreObjeto(key) {
+    return TRAD_OBJETOS[key] || key.replace(/-/g, " ");
+}
+
+async function obtenerSpriteItem(key) {
+    if (itemDetailsCache[key] && itemDetailsCache[key].spriteUrl) {
+        return itemDetailsCache[key].spriteUrl;
+    }
+
+    try {
+        let resp = await fetch("https://pokeapi.co/api/v2/item/" + key + "/");
+        if (resp.ok) {
+            let data = await resp.json();
+            let spriteUrl = data && data.sprites && data.sprites.default ? data.sprites.default : ITEM_SPRITE_BASE + key + ".png";
+            itemDetailsCache[key] = { spriteUrl: spriteUrl, data: data };
+            return spriteUrl;
+        }
+    } catch (error) {}
+
+    let fallbackUrl = ITEM_SPRITE_BASE + key + ".png";
+    itemDetailsCache[key] = { spriteUrl: fallbackUrl, data: null };
+    return fallbackUrl;
+}
+
 window.addEventListener("load", cargarTodosItems);
 
 buscadorItems.addEventListener("input", function () {
     btnClearItemSearch.classList.toggle("oculto", this.value === "");
+    itemSuggestionIndex = -1;
     clearTimeout(itemSearchTimeout);
     itemSearchTimeout = setTimeout(function () {
         let texto = buscadorItems.value.trim();
@@ -81,8 +117,20 @@ buscadorItems.addEventListener("keydown", function (e) {
 });
 
 document.addEventListener("click", function (e) {
-    if (!e.target.closest(".buscador-contenedor-items")) {
+    if (!e.target.closest(".buscador-contenedor")) {
         itemSuggestions.classList.add("oculto");
+    }
+});
+
+document.addEventListener("keydown", function (event) {
+    if (event.key === " " && event.ctrlKey) {
+        event.preventDefault();
+        buscadorItems.value = "";
+        btnClearItemSearch.classList.add("oculto");
+        itemSuggestions.classList.add("oculto");
+        ocultarResultados();
+        aplicarFiltroItems();
+        buscadorItems.focus();
     }
 });
 
@@ -102,33 +150,34 @@ function resaltarSugerencia(items) {
 }
 
 function buscarCoincidenciasItems(texto) {
-    let lower = texto.toLowerCase();
-    let matches = [];
-    let seen = {};
+    let query = normalizarTexto(texto);
+    if (!query) return [];
 
-    for (let key in TRAD_OBJETOS) {
-        let val = TRAD_OBJETOS[key];
-        if (key.includes(lower) || val.toLowerCase().includes(lower)) {
-            if (!seen[key]) {
-                matches.push({ key: key, value: val });
-                seen[key] = true;
-            }
+    let matches = [];
+
+    Object.keys(TRAD_OBJETOS).forEach(function (key) {
+        let value = TRAD_OBJETOS[key];
+        let keySearch = normalizarTexto(key);
+        let valueSearch = normalizarTexto(value);
+
+        if (keySearch.includes(query) || valueSearch.includes(query)) {
+            matches.push({ key: key, value: value, keySearch: keySearch, valueSearch: valueSearch });
         }
-    }
+    });
 
     matches.sort(function (a, b) {
-        let aExact = a.value.toLowerCase() === lower || a.key === lower;
-        let bExact = b.value.toLowerCase() === lower || b.key === lower;
+        let aExact = a.valueSearch === query || a.keySearch === query;
+        let bExact = b.valueSearch === query || b.keySearch === query;
         if (aExact && !bExact) return -1;
         if (!aExact && bExact) return 1;
-        let aStart = a.key.startsWith(lower) || a.value.toLowerCase().startsWith(lower);
-        let bStart = b.key.startsWith(lower) || b.value.toLowerCase().startsWith(lower);
+        let aStart = a.keySearch.startsWith(query) || a.valueSearch.startsWith(query);
+        let bStart = b.keySearch.startsWith(query) || b.valueSearch.startsWith(query);
         if (aStart && !bStart) return -1;
         if (!aStart && bStart) return 1;
         return a.value.localeCompare(b.value);
     });
 
-    return matches;
+    return matches.slice(0, ITEM_RESULTS_LIMIT);
 }
 
 function mostrarSugerencias(matches) {
@@ -137,9 +186,18 @@ function mostrarSugerencias(matches) {
         itemSuggestions.classList.add("oculto");
         return;
     }
-    itemSuggestions.innerHTML = matches.map(function (m) {
-        return '<div class="autocomplete-item" data-key="' + m.key + '">' + m.value + '</div>';
-    }).join("");
+
+    let fragment = document.createDocumentFragment();
+    matches.forEach(function (m) {
+        let option = document.createElement("div");
+        option.className = "autocomplete-item";
+        option.dataset.key = m.key;
+        option.textContent = m.value;
+        fragment.appendChild(option);
+    });
+
+    itemSuggestions.innerHTML = "";
+    itemSuggestions.appendChild(fragment);
     itemSuggestions.classList.remove("oculto");
 
     itemSuggestions.querySelectorAll(".autocomplete-item").forEach(function (el) {
@@ -159,29 +217,18 @@ function mostrarSugerencias(matches) {
 async function cargarTodosItems() {
     loadingItems.style.display = "block";
     let itemKeys = Object.keys(TRAD_OBJETOS);
+    todosLosItems = [];
+    itemDetailsCache = {};
+    galeriaItems.innerHTML = "";
 
     for (let i = 0; i < itemKeys.length; i += 20) {
         let batch = itemKeys.slice(i, i + 20);
         let promesas = batch.map(function (key) {
-            return fetch("https://pokeapi.co/api/v2/item/" + key + "/")
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    return data;
-                })
-                .catch(function () {
-                    return null;
-                })
-                .then(function (data) {
-                    let spriteUrl = null;
-                    if (data && data.sprites && data.sprites.default) {
-                        spriteUrl = data.sprites.default;
-                    } else {
-                        spriteUrl = ITEM_SPRITE_BASE + key + ".png";
-                    }
-                    let card = crearCardItem(key, spriteUrl);
-                    galeriaItems.appendChild(card);
-                    todosLosItems.push(card);
-                });
+            return obtenerSpriteItem(key).then(function (spriteUrl) {
+                let card = crearCardItem(key, spriteUrl);
+                galeriaItems.appendChild(card);
+                todosLosItems.push(card);
+            });
         });
         await Promise.allSettled(promesas);
     }
@@ -194,10 +241,11 @@ function crearCardItem(key, spriteUrl) {
     let div = document.createElement("div");
     div.className = "item-card";
     div.dataset.key = key;
-    div.dataset.name = TRAD_OBJETOS[key].toLowerCase();
+    div.dataset.name = normalizarTexto(TRAD_OBJETOS[key]);
+    div.dataset.search = normalizarTexto(key + " " + TRAD_OBJETOS[key]);
 
     let img = document.createElement("img");
-    img.alt = TRAD_OBJETOS[key];
+    img.alt = obtenerNombreObjeto(key);
     img.loading = "lazy";
     img.src = spriteUrl || FALLBACK_SPRITE;
     img.onerror = function () {
@@ -244,11 +292,10 @@ function ocultarResultados() {
 }
 
 function aplicarFiltroItems() {
-    let texto = buscadorItems.value.toLowerCase().trim();
+    let texto = normalizarTexto(buscadorItems.value);
 
     todosLosItems.forEach(function (card) {
-        let nombre = card.dataset.name;
-        let coincide = texto === "" || nombre.includes(texto);
+        let coincide = texto === "" || card.dataset.search.includes(texto);
         card.style.display = coincide ? "" : "none";
     });
 
@@ -275,19 +322,7 @@ async function procesarItem(nombreIngles) {
 
     await construirMapaItemEvo();
 
-    let spriteUrl = null;
-    try {
-        let resp = await fetch("https://pokeapi.co/api/v2/item/" + nombreIngles + "/");
-        if (resp.ok) {
-            let itemData = await resp.json();
-            if (itemData && itemData.sprites && itemData.sprites.default) {
-                spriteUrl = itemData.sprites.default;
-            }
-        }
-    } catch (e) {}
-    if (!spriteUrl) {
-        spriteUrl = ITEM_SPRITE_BASE + nombreIngles + ".png";
-    }
+    let spriteUrl = await obtenerSpriteItem(nombreIngles);
 
     mostrarResultadoItem(nombreIngles, spriteUrl);
 
@@ -400,3 +435,19 @@ function mostrarResultadoItem(nombreIngles, spriteUrl) {
         });
     });
 }
+
+let btnDarkItems = document.querySelector("#btnDarkModeItems");
+if (btnDarkItems) {
+    btnDarkItems.addEventListener("click", function () {
+        document.documentElement.classList.toggle("dark-mode");
+        document.body.classList.toggle("dark-mode");
+        this.classList.toggle("activo");
+        localStorage.setItem("pokedex_darkmode", document.documentElement.classList.contains("dark-mode"));
+    });
+    if (localStorage.getItem("pokedex_darkmode") === "true") {
+        document.documentElement.classList.add("dark-mode");
+        document.body.classList.add("dark-mode");
+        btnDarkItems.classList.add("activo");
+    }
+}
+
