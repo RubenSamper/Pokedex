@@ -1109,9 +1109,27 @@ function aplicarFiltros() {
 }
 
 function ordenarYPintar() {
+    var STAT_MAP = { velocidad: 'speed', ps: 'hp', ataque: 'attack', defensa: 'defense', 'at-esp': 'special-attack', 'def-esp': 'special-defense' };
+
     todosLosPokemon.sort(function (a, b) {
         var idA = Number(a.dataset.id), idB = Number(b.dataset.id);
         var nameA = a.dataset.name, nameB = b.dataset.name;
+
+        if (sortBy === 'bst' || STAT_MAP[sortBy]) {
+            var key = STAT_MAP[sortBy] || null;
+            var getVal = function (card) {
+                var data = pokemonDataCache[card.dataset.id];
+                if (!data || !data.stats) return -1;
+                if (sortBy === 'bst') return data.stats.reduce(function (s, st) { return s + st.base_stat; }, 0);
+                var found = data.stats.find(function (st) { return st.stat.name === key; });
+                return found ? found.base_stat : -1;
+            };
+            var vA = getVal(a), vB = getVal(b);
+            if (vA === vB) return idA - idB;
+            if (vA === -1) return 1;
+            if (vB === -1) return -1;
+            return vB - vA;
+        }
 
         switch (sortBy) {
             case "id": return idA - idB;
@@ -1430,11 +1448,13 @@ async function abrirModal(idPokemon) {
         }
         document.querySelector("#descripcionModal").textContent = descripcion;
         modal.classList.remove("oculto");
+        requestAnimationFrame(function () { modal.scrollTop = 0; });
 
     } catch (error) {
         console.log("Error cargando datos del pokemon:", error);
         document.querySelector("#descripcionModal").textContent = "Error al cargar los datos.";
         modal.classList.remove("oculto");
+        requestAnimationFrame(function () { modal.scrollTop = 0; });
     }
 }
 
@@ -1820,6 +1840,7 @@ let teamNewBtn = document.querySelector("#teamNewBtn");
 let teamRenameBtn = document.querySelector("#teamRenameBtn");
 let teamDeleteBtn = document.querySelector("#teamDeleteBtn");
 let equipoSlotSeleccionado = null;
+let teamOrderBy = null;
 let equiposGuardados = {};
 let equipoActivo = null;
 
@@ -1943,6 +1964,10 @@ teamSlots.addEventListener("click", function (e) {
         renderizarEquipo();
         return;
     }
+    if (e.target.closest(".team-slot-edit")) {
+        mostrarEditorPokemon(index);
+        return;
+    }
     equipoSlotSeleccionado = index;
     teamPickerSearch.value = "";
     renderizarPickerList("");
@@ -1990,6 +2015,19 @@ function renderizarEquipo() {
                 });
                 slot.appendChild(tiposDiv);
             }
+            let data = pokemonDataCache[id];
+            if (data && data.stats) {
+                let bst = data.stats.reduce(function (s, st) { return s + st.base_stat; }, 0);
+                let bstEl = document.createElement("span");
+                bstEl.className = "team-slot-bst";
+                bstEl.textContent = "BST " + bst;
+                slot.appendChild(bstEl);
+            }
+            let editBtn = document.createElement("span");
+            editBtn.className = "team-slot-edit";
+            editBtn.textContent = "\u270E";
+            editBtn.title = "Editar stats / habilidad";
+            slot.appendChild(editBtn);
             let remove = document.createElement("span");
             remove.className = "team-slot-remove";
             remove.textContent = "\u00D7";
@@ -2026,10 +2064,24 @@ function renderizarPickerList(filtro) {
         img.src = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/" + id + ".png";
         img.onerror = function () { this.src = FALLBACK_SPRITE; };
         item.appendChild(img);
+        let infoDiv = document.createElement("div");
+        infoDiv.className = "picker-info";
         let nameSpan = document.createElement("span");
         nameSpan.className = "picker-name";
         nameSpan.textContent = card.dataset.name;
-        item.appendChild(nameSpan);
+        infoDiv.appendChild(nameSpan);
+        let tiposDiv = document.createElement("div");
+        tiposDiv.className = "picker-tipos";
+        let types = card.dataset.types ? card.dataset.types.split(",") : [];
+        types.forEach(function (t) {
+            let badge = document.createElement("span");
+            badge.className = "tipo-badge";
+            badge.style.background = COLORES_TIPO[t] || "#999";
+            badge.textContent = TRAD_TIPO[t] || t;
+            tiposDiv.appendChild(badge);
+        });
+        infoDiv.appendChild(tiposDiv);
+        item.appendChild(infoDiv);
         let idSpan = document.createElement("span");
         idSpan.className = "picker-id";
         idSpan.textContent = "#" + id;
@@ -2049,14 +2101,92 @@ function agregarAlEquipo(id, nombre) {
     if (data && data.types) {
         tipos = data.types.map(function (t) { return t.type.name; });
     }
+    let stats = {};
+    if (data && data.stats) {
+        data.stats.forEach(function (s) { stats[s.stat.name] = s.base_stat; });
+    }
+    let abilities = [];
+    if (data && data.abilities) {
+        abilities = data.abilities.map(function (a) { return a.ability.name; });
+    }
+    let entry = { id: Number(id), nombre: nombre, tipos: tipos, stats: stats, abilities: abilities, selectedAbility: abilities[0] || '' };
     if (equipoSlotSeleccionado !== null && equipoSlotSeleccionado < eq.length) {
-        eq[equipoSlotSeleccionado] = { id: Number(id), nombre: nombre, tipos: tipos };
+        eq[equipoSlotSeleccionado] = entry;
     } else {
-        eq.push({ id: Number(id), nombre: nombre, tipos: tipos });
+        eq.push(entry);
     }
     guardarEquipos();
     teamPickerModal.classList.add("oculto");
     renderizarEquipo();
+}
+
+function mostrarEditorPokemon(index) {
+    let eq = getEquipo();
+    let pkm = eq[index];
+    if (!pkm) return;
+
+    let stats = pkm.stats || {};
+    let statKeys = ['hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed'];
+    let TRAD_STATS_EDIT = { hp: 'PS', attack: 'Ataque', defense: 'Defensa', 'special-attack': 'At. Esp', 'special-defense': 'Def. Esp', speed: 'Velocidad' };
+
+    let html = '<div class="team-editor" data-edit-index="' + index + '">';
+    html += '<div class="te-header"><span class="tsect-i">E</span><h3>Editando: ' + pkm.nombre + '</h3></div>';
+
+    html += '<div class="te-stats"><h4>Estadisticas base</h4><div class="te-stats-grid">';
+    statKeys.forEach(function (key) {
+        let val = stats[key] !== undefined ? stats[key] : 0;
+        html += '<div class="te-stat-row"><span class="te-stat-label">' + TRAD_STATS_EDIT[key] + '</span><input type="number" class="te-stat-input" data-stat="' + key + '" value="' + val + '" min="1" max="255"><input type="range" class="te-stat-range" data-stat="' + key + '" value="' + val + '" min="1" max="255"></div>';
+    });
+    html += '</div></div>';
+
+    let abilities = pkm.abilities && pkm.abilities.length ? pkm.abilities : [];
+    if (abilities.length) {
+        html += '<div class="te-ability"><h4>Habilidad Pasiva</h4><select class="te-ability-select">';
+        abilities.forEach(function (a) {
+            let sel = a === pkm.selectedAbility ? ' selected' : '';
+            html += '<option value="' + a + '"' + sel + '>' + formatearNombreHabilidad(a) + '</option>';
+        });
+        html += '</select></div>';
+    } else {
+        html += '<div class="te-ability"><h4>Habilidad Pasiva</h4><span class="tvacio">Sin datos de habilidad</span></div>';
+    }
+
+    html += '<div class="te-actions"><button class="te-save-btn">Guardar cambios</button><button class="te-cancel-btn">Cancelar</button></div>';
+    html += '</div>';
+
+    teamInfo.innerHTML = html;
+
+    teamInfo.querySelectorAll('.te-stat-range').forEach(function (range) {
+        range.addEventListener('input', function () {
+            let input = teamInfo.querySelector('.te-stat-input[data-stat="' + this.dataset.stat + '"]');
+            if (input) input.value = this.value;
+        });
+    });
+    teamInfo.querySelectorAll('.te-stat-input').forEach(function (input) {
+        input.addEventListener('input', function () {
+            let range = teamInfo.querySelector('.te-stat-range[data-stat="' + this.dataset.stat + '"]');
+            if (range) range.value = this.value;
+        });
+    });
+
+    teamInfo.querySelector('.te-save-btn').addEventListener('click', function () {
+        let idx = parseInt(teamInfo.querySelector('.team-editor').dataset.editIndex);
+        let eq2 = getEquipo();
+        if (!eq2[idx]) return;
+        let newStats = {};
+        teamInfo.querySelectorAll('.te-stat-input').forEach(function (inp) {
+            newStats[inp.dataset.stat] = parseInt(inp.value) || 0;
+        });
+        eq2[idx].stats = newStats;
+        let selAbility = teamInfo.querySelector('.te-ability-select');
+        if (selAbility) eq2[idx].selectedAbility = selAbility.value;
+        guardarEquipos();
+        renderizarEquipo();
+    });
+
+    teamInfo.querySelector('.te-cancel-btn').addEventListener('click', function () {
+        actualizarAnalisisEquipo();
+    });
 }
 
 function actualizarAnalisisEquipo() {
@@ -2067,80 +2197,143 @@ function actualizarAnalisisEquipo() {
     }
 
     let tiposEquipo = [];
-    eq.forEach(function (pkm) {
+    let miembrosHtml = '';
+    let allAbilities = [];
+    let allStats = [];
+    let maxStat = 255;
+    let STAT_COLORS = { hp: '#43A047', attack: '#EF5350', defense: '#FF9800', 'special-attack': '#5C6BC0', 'special-defense': '#26A69A', speed: '#AB47BC' };
+    let TRAD_STATS = { hp: 'PS', attack: 'Ataque', defense: 'Defensa', 'special-attack': 'At. Esp', 'special-defense': 'Def. Esp', speed: 'Velocidad' };
+
+    if (teamOrderBy) {
+        eq.sort(function (a, b) {
+            var ORDER_MAP = { velocidad: 'speed', ps: 'hp', ataque: 'attack', defensa: 'defense', 'special-attack': 'special-attack', 'special-defense': 'special-defense' };
+            var key = ORDER_MAP[teamOrderBy];
+            var getVal = function (p) {
+                var s = p.stats || {};
+                if (teamOrderBy === 'bst') {
+                    var sum = 0;
+                    ['hp','attack','defense','special-attack','special-defense','speed'].forEach(function (k) { sum += s[k] || 0; });
+                    return sum;
+                }
+                return s[key] || 0;
+            };
+            return getVal(b) - getVal(a);
+        });
+    }
+
+    eq.forEach(function (pkm, i) {
         (pkm.tipos || []).forEach(function (t) {
             if (tiposEquipo.indexOf(t) === -1) tiposEquipo.push(t);
         });
+
+        let customStats = pkm.stats;
+        let data = pokemonDataCache[pkm.id];
+        let statsArray = [];
+        let bst = 0;
+        let statsHtml = '';
+        let statKeys = ['hp', 'attack', 'defense', 'special-attack', 'special-defense', 'speed'];
+        statKeys.forEach(function (key) {
+            let val;
+            if (customStats && customStats[key] !== undefined) {
+                val = customStats[key];
+            } else if (data && data.stats) {
+                let found = data.stats.find(function (s) { return s.stat.name === key; });
+                val = found ? found.base_stat : 0;
+            } else {
+                val = 0;
+            }
+            bst += val;
+            let pct = Math.min(val / maxStat * 100, 100);
+            let label = TRAD_STATS[key] || key;
+            let color = STAT_COLORS[key] || 'var(--accent)';
+            statsHtml += '<div class="tms-row"><span class="tms-label">' + label + '</span><div class="tms-bar"><div class="tms-fill" style="width:' + pct + '%;background:' + color + '"></div></div><span class="tms-val">' + val + '</span></div>';
+            statsArray.push({ stat: { name: key }, base_stat: val });
+        });
+
+        allStats.push({ id: pkm.id, nombre: pkm.nombre, stats: statsArray, bst: bst });
+
+        let tiposHtml = '';
+        (pkm.tipos || []).forEach(function (t) {
+            let c = COLORES_TIPO[t] || '#999';
+            let n = TRAD_TIPO[t] || t;
+            tiposHtml += '<span class="tipo-badge" style="background:' + c + '">' + n + '</span>';
+        });
+
+        let abilities = pkm.abilities && pkm.abilities.length ? pkm.abilities : [];
+        let selectedAbility = pkm.selectedAbility || '';
+        if (abilities.length) {
+            allAbilities.push({ nombre: pkm.nombre, abilities: abilities, selected: selectedAbility });
+        }
+
+        let abilHtml = '';
+        if (abilities.length) {
+            abilHtml = abilities.map(function (a) {
+                let displayName = formatearNombreHabilidad(a);
+                return a === selectedAbility ? '<strong>' + displayName + '</strong>' : displayName;
+            }).join(' \u00B7 ');
+        }
+
+        miembrosHtml += '<div class="tm-card"><div class="tm-head"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/' + pkm.id + '.png" alt="' + pkm.nombre + '" onerror="this.src=\'' + FALLBACK_SPRITE + '\'"><div class="tm-info"><span class="tm-name">' + pkm.nombre + '</span><span class="tm-id">#' + pkm.id + '</span><div class="tm-tipos">' + tiposHtml + '</div></div><div class="tm-bst"><span class="bst-val">' + bst + '</span><span class="bst-lbl">BST</span></div></div>' + (statsHtml ? '<div class="tms-grid">' + statsHtml + '</div>' : '') + (abilHtml ? '<div class="tm-abil">' + abilHtml + '</div>' : '') + '</div>';
     });
 
     let ofensivo = calcularCoberturaOfensiva(tiposEquipo);
     let defensivo = calcularCoberturaDefensiva(tiposEquipo);
 
-    let html = '<div class="team-coverage-grid">';
-
-    html += '<div class="team-coverage-section">';
-    html += '<h4 style="color:var(--success)">\u2714 Ofensivo: supereficaz contra</h4>';
-    html += '<div class="team-coverage-tags">';
-    ofensivo.superEficaces.forEach(function (t) {
-        let c = COLORES_TIPO[t] || "#999";
-        let n = TRAD_TIPO[t] || t;
-        html += '<span class="tipo-badge super-effective" style="background:' + c + '">' + n + "</span>";
-    });
-    if (ofensivo.superEficaces.length === 0) html += '<span style="color:var(--muted);font-size:0.85rem">Ninguno</span>';
-    html += "</div></div>";
-
-    html += '<div class="team-coverage-section">';
-    html += '<h4 style="color:#c62828">\u2718 Defensivo: debil contra</h4>';
-    html += '<div class="team-coverage-tags">';
-    defensivo.debil.forEach(function (t) {
-        let c = COLORES_TIPO[t] || "#999";
-        let n = TRAD_TIPO[t] || t;
-        html += '<span class="tipo-badge not-very" style="background:' + c + '">' + n + "</span>";
-    });
-    if (defensivo.debil.length === 0) html += '<span style="color:var(--muted);font-size:0.85rem">Ninguno</span>';
-    html += "</div></div>";
-
-    html += '<div class="team-coverage-section">';
-    html += '<h4 style="color:var(--success)">\u2714 Defensivo: resistente contra</h4>';
-    html += '<div class="team-coverage-tags">';
-    defensivo.resistente.forEach(function (t) {
-        let c = COLORES_TIPO[t] || "#999";
-        let n = TRAD_TIPO[t] || t;
-        html += '<span class="tipo-badge" style="background:' + c + '">' + n + "</span>";
-    });
-    if (defensivo.resistente.length === 0) html += '<span style="color:var(--muted);font-size:0.85rem">Ninguno</span>';
-    html += "</div></div>";
-
-    html += '<div class="team-coverage-section">';
-    html += '<h4 style="color:#7b1fa2">\u2716 Defensivo: inmune contra</h4>';
-    html += '<div class="team-coverage-tags">';
-    defensivo.inmune.forEach(function (t) {
-        let c = COLORES_TIPO[t] || "#999";
-        let n = TRAD_TIPO[t] || t;
-        html += '<span class="tipo-badge immune" style="background:' + c + '">' + n + "</span>";
-    });
-    if (defensivo.inmune.length === 0) html += '<span style="color:var(--muted);font-size:0.85rem">Ninguno</span>';
-    html += "</div></div>";
-
-    html += "</div>";
-
-    html += '<div class="team-pros-cons">';
-    if (ofensivo.superEficaces.length >= 6) {
-        html += '<p class="pro">\u2714 Buena cobertura ofensiva: tu equipo cubre ' + ofensivo.superEficaces.length + " tipos</p>";
-    } else {
-        html += '<p class="con">\u2718 Cobertura ofensiva limitada: solo cubre ' + ofensivo.superEficaces.length + " tipos</p>";
+    function tags(lista, cls) {
+        if (!lista.length) return '<span class="tvacio">Ninguno</span>';
+        return lista.map(function (t) {
+            return '<span class="tipo-badge' + (cls ? ' ' + cls : '') + '" style="background:' + (COLORES_TIPO[t] || '#999') + '">' + (TRAD_TIPO[t] || t) + '</span>';
+        }).join('');
     }
-    if (defensivo.debil.length <= 3) {
-        html += '<p class="pro">\u2714 Defensivamente s\u00F3lido: solo ' + defensivo.debil.length + " debilidad" + (defensivo.debil.length === 1 ? "" : "es") + "</p>";
-    } else {
-        html += '<p class="con">\u2718 Muchas debilidades: ' + defensivo.debil.length + ' tipos te golpean fuerte</p>';
+
+    let abHtml = '';
+    if (allAbilities.length) {
+        abHtml = allAbilities.map(function (a) {
+            let listHtml = a.abilities.map(function (abil) {
+                let displayName = formatearNombreHabilidad(abil);
+                return abil === a.selected ? '<strong>' + displayName + '</strong>' : displayName;
+            }).join(' \u00B7 ');
+            return '<div class="ta-item"><span class="ta-pkm">' + a.nombre + '</span><span class="ta-list">' + listHtml + '</span></div>';
+        }).join('');
     }
-    if (defensivo.inmune.length > 0) {
-        html += '<p class="pro">\u2714 Inmunidades: ' + defensivo.inmune.length + ' tipo' + (defensivo.inmune.length === 1 ? '' : 's') + ' no te afectan</p>';
+
+    let html = '';
+    html += '<div class="tsect"><div class="tsect-h"><span class="tsect-i">M</span><h3>Miembros</h3><div class="te-order-btns" style="margin-left:auto">';
+    var ORDER_OPTS = { velocidad: 'Velocidad', ps: 'PS', ataque: 'Ataque', defensa: 'Defensa', 'special-attack': 'At. Esp', 'special-defense': 'Def. Esp', bst: 'BST total' };
+    Object.keys(ORDER_OPTS).forEach(function (key) {
+        html += '<button class="te-order-btn' + (teamOrderBy === key ? ' activo' : '') + '" data-order="' + key + '">' + ORDER_OPTS[key] + '</button>';
+    });
+    html += '</div></div><div class="tm-grid">' + miembrosHtml + '</div></div>';
+
+    html += '<div class="tcg">';
+    html += '<div class="tsect tcs"><div class="tsect-h"><h4 style="color:var(--success);margin:0">Ofensivo: supereficaz contra</h4></div><div class="tct">' + tags(ofensivo.superEficaces, 'super-effective') + '</div></div>';
+    html += '<div class="tsect tcs"><div class="tsect-h"><h4 style="color:#c62828;margin:0">Defensivo: debil contra</h4></div><div class="tct">' + tags(defensivo.debil, 'not-very') + '</div></div>';
+    html += '<div class="tsect tcs"><div class="tsect-h"><h4 style="color:var(--success);margin:0">Defensivo: resistente contra</h4></div><div class="tct">' + tags(defensivo.resistente) + '</div></div>';
+    html += '<div class="tsect tcs"><div class="tsect-h"><h4 style="color:#7b1fa2;margin:0">Defensivo: inmune contra</h4></div><div class="tct">' + tags(defensivo.inmune, 'immune') + '</div></div>';
+    html += '</div>';
+
+    if (abHtml) {
+        html += '<div class="tsect"><div class="tsect-h"><span class="tsect-i">H</span><h3>Habilidades Pasivas</h3></div><div class="ta-grid">' + abHtml + '</div></div>';
     }
-    html += "</div>";
+
+    html += '<div class="tsect"><div class="tsect-h"><span class="tsect-i">A</span><h3>Analisis</h3></div><div class="tpc">';
+    html += ofensivo.superEficaces.length >= 6
+        ? '<p class="tpro">Buena cobertura ofensiva: cubres ' + ofensivo.superEficaces.length + ' tipos</p>'
+        : '<p class="tcon">Cobertura ofensiva limitada: solo cubres ' + ofensivo.superEficaces.length + ' tipos</p>';
+    html += defensivo.debil.length <= 3
+        ? '<p class="tpro">Defensivamente solido: solo ' + defensivo.debil.length + ' debilidad' + (defensivo.debil.length === 1 ? '' : 'es') + '</p>'
+        : '<p class="tcon">Muchas debilidades: ' + defensivo.debil.length + ' tipos te golpean fuerte</p>';
+    if (defensivo.inmune.length) html += '<p class="tpro">Inmunidades: ' + defensivo.inmune.length + ' tipo' + (defensivo.inmune.length === 1 ? '' : 's') + ' no te afectan</p>';
+    html += '</div></div>';
 
     teamInfo.innerHTML = html;
+
+    teamInfo.querySelectorAll('.te-order-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            teamOrderBy = this.dataset.order;
+            actualizarAnalisisEquipo();
+        });
+    });
 }
 
 function calcularCoberturaOfensiva(tiposEquipo) {
