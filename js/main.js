@@ -345,7 +345,7 @@ let tiempoBusqueda;
 let cacheHabilidades = {};
 let cacheMovimientos = {};
 let tipoFiltroActivo = null;
-let regionFiltroActivo = "kanto";
+let regionFiltroActivo = "all";
 let sortBy = "id";
 let soloFavoritos = false;
 let modoComparar = false;
