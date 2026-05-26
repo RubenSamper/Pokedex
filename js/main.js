@@ -344,7 +344,7 @@ let pokemonDataCache = {};
 let tiempoBusqueda;
 let cacheHabilidades = {};
 let cacheMovimientos = {};
-let tipoFiltroActivo = null;
+let tiposFiltroActivos = [];
 let regionFiltroActivo = "all";
 let sortBy = "id";
 let soloFavoritos = false;
@@ -1040,9 +1040,24 @@ function crearFiltrosTipo() {
     tipoFiltrosEl.addEventListener("click", function (e) {
         let badge = e.target.closest(".tipo-filtro-badge");
         if (!badge) return;
-        tipoFiltrosEl.querySelectorAll(".tipo-filtro-badge").forEach(function (b) { b.classList.remove("activo"); });
-        badge.classList.add("activo");
-        tipoFiltroActivo = badge.dataset.tipo || null;
+        let tipo = badge.dataset.tipo;
+
+        if (tipo === "") {
+            tiposFiltroActivos = [];
+            tipoFiltrosEl.querySelectorAll(".tipo-filtro-badge").forEach(function (b) {
+                b.classList.toggle("activo", b.dataset.tipo === "");
+            });
+        } else {
+            let idx = tiposFiltroActivos.indexOf(tipo);
+            if (idx > -1) {
+                tiposFiltroActivos.splice(idx, 1);
+                badge.classList.remove("activo");
+            } else {
+                tiposFiltroActivos.push(tipo);
+                badge.classList.add("activo");
+            }
+            document.querySelector('.tipo-filtro-badge.todo').classList.toggle("activo", tiposFiltroActivos.length === 0);
+        }
         aplicarFiltros();
     });
 }
@@ -1058,8 +1073,13 @@ function aplicarFiltros() {
         let coincideTexto = texto === "" || nombre.includes(texto) || id.includes(texto);
 
         let coincideTipo = true;
-        if (tipoFiltroActivo && item.dataset.types) {
-            coincideTipo = item.dataset.types.split(",").indexOf(tipoFiltroActivo) > -1;
+        if (tiposFiltroActivos.length > 0) {
+            if (item.dataset.types) {
+                var tiposPokemon = item.dataset.types.split(",");
+                coincideTipo = tiposFiltroActivos.every(function (t) { return tiposPokemon.indexOf(t) > -1; });
+            } else {
+                coincideTipo = false;
+            }
         }
 
         let coincideRegion = true;
@@ -1078,7 +1098,7 @@ function aplicarFiltros() {
 
     let visible = galeriaPokemon.querySelectorAll('.pokemon-item[style*="display: none"]');
     let algunVisible = todosLosPokemon.length > visible.length;
-    let hayFiltrosActivos = texto !== "" || tipoFiltroActivo || regionFiltroActivo !== "all" || soloFavoritos;
+    let hayFiltrosActivos = texto !== "" || tiposFiltroActivos.length > 0 || regionFiltroActivo !== "all" || soloFavoritos;
     if (hayFiltrosActivos && !algunVisible) {
         noResults.classList.remove("oculto");
     } else {

@@ -445,11 +445,18 @@ body.dark-mode .search-hint {
     cursor: pointer;
     border: 1px solid rgba(255, 255, 255, 0.46);
     box-shadow: 0 6px 16px rgba(20, 32, 44, 0.08);
+    opacity: 0.3;
+    transition: opacity 0.25s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tipo-filtro-badge.activo {
+    opacity: 1;
     transform: translateY(-1px);
     box-shadow: 0 12px 22px rgba(20, 32, 44, 0.12);
+}
+
+.tipo-filtro-badge.todo.activo {
+    opacity: 1;
 }
 
 .tipo-filtro-badge.todo {
