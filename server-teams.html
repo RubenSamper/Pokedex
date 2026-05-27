@@ -322,7 +322,7 @@
 
 <script>
 const SERVER_ID = '6a16d56a9bd4b6296506e1d7';
-const API_URL = `https://cobblemonextras.com/api/showcase/${SERVER_ID}`;
+const API_URL = `https://cobblemonextras.com/api/showcase/servers/${SERVER_ID}/players?page=1`;
 
 // Tipos de Pokémon desde PokeAPI (caché local)
 const typeCache = {};
@@ -364,6 +364,14 @@ function getHpClass(pct) {
 
 function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}
+
+function normalizePlayersResponse(data) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.players)) return data.players;
+  if (data && data.players && typeof data.players === 'object') return Object.values(data.players);
+  if (data && Array.isArray(data.data)) return data.data;
+  return [];
 }
 
 async function renderTeams(data) {
@@ -486,8 +494,7 @@ async function loadTeams(manual = false) {
     const data = await res.json();
     console.log('CobblemonExtras API response:', data);
     
-    // La API puede devolver { players: [...] } o directamente [...]
-    const players = Array.isArray(data) ? data : (data.players || data.data || []);
+    const players = normalizePlayersResponse(data);
     await renderTeams(players);
 
     const now = new Date();
