@@ -124,7 +124,18 @@
                 <div class="modal-header-bar"></div>
                 <span class="cerrar" id="teamCerrar">&times;</span>
             </div>
-            <div class="team-body">
+
+            <!-- Pestañas -->
+            <div class="team-tabs">
+                <button class="team-tab active" id="tabMiEquipo" onclick="switchTeamTab('miequipo')">Mi Equipo</button>
+                <button class="team-tab" id="tabServidor" onclick="switchTeamTab('servidor')">
+                    🌐 Servidor
+                    <span class="tab-live-dot"></span>
+                </button>
+            </div>
+
+            <!-- Panel: Mi Equipo (original) -->
+            <div class="team-body" id="panelMiEquipo">
                 <div class="team-manager">
                     <select id="teamSelector" class="toolbar-select" style="flex:1;min-width:120px"></select>
                     <button id="teamNewBtn" class="toolbar-btn" title="Nuevo equipo">+ Nuevo</button>
@@ -143,8 +154,346 @@
                     <p class="team-info-empty">Haz clic en un slot para añadir un Pokémon</p>
                 </div>
             </div>
+
+            <!-- Panel: Servidor -->
+            <div class="team-body oculto" id="panelServidor">
+                <div class="servidor-header">
+                    <span class="servidor-title">La casa del Girona</span>
+                    <button class="servidor-refresh" id="servidorRefreshBtn" onclick="loadServerTeams(true)" title="Actualizar">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                        </svg>
+                    </button>
+                    <span class="servidor-update" id="servidorUpdate"></span>
+                </div>
+                <div id="servidorRoot">
+                    <div class="servidor-loading">
+                        <span>●</span><span>●</span><span>●</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <style>
+    /* ── Pestañas ── */
+    .team-tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.1));
+        padding: 0 1rem;
+        margin-bottom: 0;
+    }
+    .team-tab {
+        position: relative;
+        padding: 0.6rem 1.1rem;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-family: inherit;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-muted, #888);
+        cursor: pointer;
+        transition: color 0.2s, border-color 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .team-tab.active {
+        color: var(--accent, #e53935);
+        border-bottom-color: var(--accent, #e53935);
+    }
+    .tab-live-dot {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: #4ade80;
+        animation: livePulse 2s infinite;
+    }
+    @keyframes livePulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+
+    /* ── Header servidor ── */
+    .servidor-header {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.08));
+    }
+    .servidor-title {
+        font-weight: 700;
+        font-size: 0.85rem;
+        flex: 1;
+    }
+    .servidor-update {
+        font-size: 0.7rem;
+        color: var(--text-muted, #888);
+    }
+    .servidor-refresh {
+        background: none;
+        border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+        border-radius: 50%;
+        width: 28px; height: 28px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        color: var(--text-muted, #888);
+        transition: all 0.2s;
+        flex-shrink: 0;
+    }
+    .servidor-refresh:hover { border-color: var(--accent, #e53935); color: var(--accent, #e53935); }
+    .servidor-refresh.spinning svg { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Loading ── */
+    .servidor-loading {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        padding: 2.5rem;
+    }
+    .servidor-loading span {
+        font-size: 1.2rem;
+        color: var(--accent, #e53935);
+        animation: dotBounce 1.2s infinite;
+    }
+    .servidor-loading span:nth-child(2) { animation-delay: 0.2s; }
+    .servidor-loading span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotBounce {
+        0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+        40% { transform: scale(1.1); opacity: 1; }
+    }
+
+    /* ── Grid de jugadores ── */
+    .sv-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 0.75rem 1rem;
+        max-height: 420px;
+        overflow-y: auto;
+    }
+    .sv-player {
+        border: 1px solid var(--border-color, rgba(0,0,0,0.1));
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .sv-player-head {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.55rem 0.8rem;
+        background: rgba(0,0,0,0.03);
+        border-bottom: 1px solid var(--border-color, rgba(0,0,0,0.07));
+    }
+    .sv-avatar {
+        width: 28px; height: 28px;
+        border-radius: 6px;
+        overflow: hidden;
+        flex-shrink: 0;
+        background: var(--border-color, #eee);
+    }
+    .sv-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .sv-playername { font-weight: 700; font-size: 0.85rem; flex: 1; }
+    .sv-badge {
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+    }
+    .sv-badge.online { background: rgba(74,222,128,0.15); color: #16a34a; }
+    .sv-badge.offline { background: rgba(0,0,0,0.07); color: #888; }
+
+    /* ── Team slots servidor ── */
+    .sv-team {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 4px;
+        padding: 0.6rem 0.7rem;
+    }
+    .sv-slot {
+        text-align: center;
+        cursor: default;
+    }
+    .sv-slot.empty { opacity: 0.25; }
+    .sv-poke-img {
+        width: 48px; height: 48px;
+        margin: 0 auto;
+        position: relative;
+    }
+    .sv-poke-img img {
+        width: 100%; height: 100%;
+        object-fit: contain;
+        image-rendering: pixelated;
+    }
+    .sv-poke-name {
+        font-size: 0.6rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .sv-poke-lvl {
+        font-size: 0.58rem;
+        color: var(--text-muted, #888);
+    }
+    .sv-shiny { font-size: 0.6rem; }
+    .sv-hp {
+        height: 2px;
+        background: rgba(0,0,0,0.1);
+        border-radius: 999px;
+        margin-top: 3px;
+        overflow: hidden;
+    }
+    .sv-hp-fill { height: 100%; border-radius: 999px; }
+    .sv-hp-high { background: #4ade80; }
+    .sv-hp-mid  { background: #facc15; }
+    .sv-hp-low  { background: #f87171; }
+
+    .sv-error, .sv-empty-msg {
+        text-align: center;
+        padding: 2rem;
+        font-size: 0.82rem;
+        color: var(--text-muted, #888);
+    }
+    </style>
+
+    <script>
+    // ── Tab switcher ──
+    function switchTeamTab(tab) {
+        document.getElementById('panelMiEquipo').classList.toggle('oculto', tab !== 'miequipo');
+        document.getElementById('panelServidor').classList.toggle('oculto', tab !== 'servidor');
+        document.getElementById('tabMiEquipo').classList.toggle('active', tab === 'miequipo');
+        document.getElementById('tabServidor').classList.toggle('active', tab === 'servidor');
+        if (tab === 'servidor' && !window._svLoaded) loadServerTeams();
+    }
+
+    // ── Showcase API ──
+    const SV_ID = '6a16d56a9bd4b6296506e1d7';
+    const SV_API = `https://cobblemonextras.com/api/showcase/${SV_ID}`;
+    const _svTypeCache = {};
+    window._svLoaded = false;
+
+    async function svGetId(name) {
+        const key = name.toLowerCase().replace(/[^a-z0-9-]/g,'');
+        if (_svTypeCache[key]) return _svTypeCache[key];
+        try {
+            const r = await fetch(`https://pokeapi.co/api/v2/pokemon/${key}`);
+            if (!r.ok) throw 0;
+            const d = await r.json();
+            _svTypeCache[key] = d.id;
+            return d.id;
+        } catch { return null; }
+    }
+
+    function svSprite(name, id, shiny) {
+        if (id) {
+            const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
+            return shiny ? `${base}/shiny/${id}.png` : `${base}/${id}.png`;
+        }
+        return `https://img.pokemondb.net/sprites/sword-shield/icon/${name.toLowerCase()}.png`;
+    }
+
+    function svCap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+    async function renderServerTeams(players) {
+        const root = document.getElementById('servidorRoot');
+        if (!players || players.length === 0) {
+            root.innerHTML = `<div class="sv-empty-msg">Sin jugadores con Showcase activo.<br><small>Pide a tus amigos que ejecuten /showcase on</small></div>`;
+            return;
+        }
+
+        // Pre-fetch IDs en paralelo
+        const allNames = [...new Set(players.flatMap(p => (p.party||p.pokemon||p.team||[]).map(pk => pk.species||pk.name||'')).filter(Boolean))];
+        await Promise.all(allNames.map(n => svGetId(n)));
+
+        const grid = document.createElement('div');
+        grid.className = 'sv-grid';
+
+        for (const player of players) {
+            const party = player.party || player.pokemon || player.team || [];
+            const username = player.username || player.player || player.name || 'Jugador';
+            const isOnline = player.online !== false;
+
+            const card = document.createElement('div');
+            card.className = 'sv-player';
+            card.innerHTML = `
+                <div class="sv-player-head">
+                    <div class="sv-avatar"><img src="https://mc-heads.net/avatar/${username}/28" alt="${username}" onerror="this.src='https://mc-heads.net/avatar/steve/28'"></div>
+                    <span class="sv-playername">${username}</span>
+                    <span class="sv-badge ${isOnline ? 'online' : 'offline'}">${isOnline ? '● Online' : 'Offline'}</span>
+                </div>`;
+
+            const teamDiv = document.createElement('div');
+            teamDiv.className = 'sv-team';
+
+            for (let i = 0; i < 6; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'sv-slot';
+                if (i < party.length) {
+                    const pk = party[i];
+                    const pkName = pk.species || pk.name || pk.pokemon || 'unknown';
+                    const pkLevel = pk.level || pk.lvl || '?';
+                    const isShiny = pk.shiny || false;
+                    const currentHp = pk.currentHealth ?? pk.hp ?? pk.currentHp ?? null;
+                    const maxHp = pk.maxHealth ?? pk.maxHp ?? null;
+                    const hpPct = (currentHp !== null && maxHp) ? Math.round((currentHp / maxHp) * 100) : null;
+                    const id = _svTypeCache[pkName.toLowerCase().replace(/[^a-z0-9-]/g,'')] || null;
+                    const spriteUrl = svSprite(pkName, id, isShiny);
+                    slot.innerHTML = `
+                        <div class="sv-poke-img"><img src="${spriteUrl}" alt="${pkName}" onerror="this.style.opacity='0.2'"></div>
+                        <div class="sv-poke-name">${isShiny ? '✨' : ''}${svCap(pkName)}</div>
+                        <div class="sv-poke-lvl">Nv.${pkLevel}</div>
+                        ${hpPct !== null ? `<div class="sv-hp"><div class="sv-hp-fill ${hpPct>50?'sv-hp-high':hpPct>20?'sv-hp-mid':'sv-hp-low'}" style="width:${hpPct}%"></div></div>` : ''}
+                    `;
+                } else {
+                    slot.classList.add('empty');
+                    slot.innerHTML = `<div style="height:48px;width:48px;margin:0 auto;background:rgba(0,0,0,0.05);border-radius:8px"></div>`;
+                }
+                teamDiv.appendChild(slot);
+            }
+            card.appendChild(teamDiv);
+            grid.appendChild(card);
+        }
+        root.innerHTML = '';
+        root.appendChild(grid);
+        window._svLoaded = true;
+    }
+
+    async function loadServerTeams(manual = false) {
+        const btn = document.getElementById('servidorRefreshBtn');
+        const root = document.getElementById('servidorRoot');
+        if (btn) btn.classList.add('spinning');
+        if (!window._svLoaded) {
+            root.innerHTML = `<div class="servidor-loading"><span>●</span><span>●</span><span>●</span></div>`;
+        }
+        try {
+            const res = await fetch(SV_API);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const players = Array.isArray(data) ? data : (data.players || data.data || []);
+            await renderServerTeams(players);
+            const now = new Date();
+            const el = document.getElementById('servidorUpdate');
+            if (el) el.textContent = now.toLocaleTimeString('es-ES');
+        } catch (err) {
+            root.innerHTML = `<div class="sv-error">❌ No se pudieron cargar los equipos<br><small>${err.message}</small></div>`;
+            console.error('Showcase API error:', err);
+        } finally {
+            if (btn) btn.classList.remove('spinning');
+        }
+    }
+
+    // Auto-refresh cada 2 min cuando el panel está visible
+    setInterval(() => {
+        if (window._svLoaded && !document.getElementById('panelServidor').classList.contains('oculto')) {
+            loadServerTeams();
+        }
+    }, 2 * 60 * 1000);
+    </script>
 
     <div id="teamPickerModal" class="modal oculto">
         <div class="modal-contenido team-picker-content">
