@@ -1346,9 +1346,9 @@
 
     .eff-section { font-size: 0.78rem; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
     .eff-label { color: var(--muted, #7070aa); font-weight: 600; margin-right: 2px; }
-    .eff-section .type-badge { font-size: 0.6rem; padding: 0.1rem 0.4rem; opacity: 0.9; }
-    .eff-weak { box-shadow: inset 0 0 0 2px #f87171; }
-    .eff-resist { box-shadow: inset 0 0 0 2px #4ade80; }
+    .eff-section .type-badge { font-size: 1.3rem; padding: 0.35rem 0.85rem; opacity: 0.95; font-weight: 800; }
+    .eff-weak { box-shadow: inset 0 0 0 2.5px #f87171; }
+    .eff-resist { box-shadow: inset 0 0 0 2.5px #4ade80; }
 
     .detail-moves-section { margin-top: 1rem; }
     .detail-moves-grid {
@@ -1531,11 +1531,104 @@
     }
     .analysis-missing-cover .analysis-tags .type-badge:hover { opacity: 0.85; }
 
-    @media (max-width: 520px) {
-      .detail-main { grid-template-columns: 1fr; }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .detail-modal { max-width: 500px; }
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 1rem 0.6rem; }
+      .header { margin-bottom: 1.5rem; }
+      .header h1 { font-size: clamp(0.65rem, 2vw, 0.9rem); }
+      .header p { font-size: 0.75rem; }
+
+      .back-btn { position: relative; top: auto; left: auto; margin-bottom: 0.8rem; display: inline-flex; }
+
+      .grid { gap: 1rem; }
+
+      .player-header { padding: 0.75rem 1rem; gap: 0.5rem; }
+      .player-avatar { width: 30px; height: 30px; }
+      .player-name { font-size: 0.85rem; }
+      .online-badge { font-size: 0.6rem; padding: 0.2rem 0.5rem; }
+
+      .team-grid { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; padding: 0.75rem; }
+      .poke-slot { padding: 0.4rem 0.3rem; }
+      .poke-slot.empty { min-height: 70px; }
+      .poke-img-wrap { width: 44px; height: 44px; }
+      .poke-img-wrap img { width: 100%; height: 100%; }
+      .poke-name { font-size: 0.6rem; }
+      .poke-level { font-size: 0.55rem; }
+      .poke-hp-bar { margin-top: 0.25rem; }
+      .type-badge { font-size: 0.48rem; padding: 0.05rem 0.25rem; }
+      .shiny-star { font-size: 0.55rem; top: -3px; right: -3px; }
+
+      /* Detail modal */
+      .detail-modal-overlay { padding: 0.6rem; align-items: flex-start; padding-top: 1rem; }
+      .detail-modal { max-width: 100%; border-radius: 16px; }
+      .detail-body { padding: 0.8rem 0.9rem 1rem; }
+      .detail-main { grid-template-columns: 1fr; gap: 1rem; }
+      .detail-sprite-section { display: flex; flex-direction: column; align-items: center; }
       .detail-sprite-wrap { width: 100px; height: 100px; }
       .detail-sprite { width: 85px; height: 85px; }
-      .detail-moves-grid { grid-template-columns: 1fr; }
+      .detail-name { font-size: 0.9rem; }
+      .detail-level { font-size: 0.75rem; }
+      .detail-meta { font-size: 0.72rem; }
+      .detail-meta-item { flex-wrap: wrap; }
+
+      .detail-stats-section h3, .detail-moves-section h3 { font-size: 0.8rem; }
+      .detail-stat-row { grid-template-columns: 56px 1fr 30px; font-size: 0.68rem; gap: 4px; }
+      .detail-stat-label { font-size: 0.68rem; }
+      .detail-stat-bar { height: 10px; }
+      .detail-stat-sub { font-size: 0.5rem; }
+      .detail-stat-val { font-size: 0.75rem; }
+
+      .detail-moves-grid { grid-template-columns: 1fr; gap: 4px; }
+      .detail-move { font-size: 0.65rem; padding: 0.3rem 0.5rem; }
+      .detail-move .type-badge { font-size: 0.5rem; padding: 0.05rem 0.25rem; }
+
+      .eff-section { font-size: 0.7rem; }
+      .eff-section .type-badge { font-size: 1.15rem; padding: 0.3rem 0.75rem; }
+
+      /* Analysis */
+      .team-analysis-btn { font-size: 0.65rem; padding: 0.35rem 0; width: calc(100% - 1.5rem); margin: 0.4rem 0.75rem 0; }
+      .analysis-summary { padding: 0.5rem 0.75rem; font-size: 0.62rem; gap: 4px; }
+      .analysis-summary span { padding: 0.25rem 0.5rem; font-size: 0.6rem; }
+      .analysis-section { margin: 0 0.4rem 0.5rem; padding: 0.4rem 0.5rem; }
+      .analysis-section-title { font-size: 0.65rem; margin-bottom: 0.35rem; }
+      .analysis-detail-row { padding: 0.3rem 0.4rem; font-size: 0.6rem; }
+      .analysis-count { font-size: 0.55rem; }
+      .analysis-pokemon-tag { font-size: 0.6rem; padding: 0.1rem 0.35rem; }
+      .analysis-pokemon-tag span { font-size: 0.5rem; }
+      .analysis-missing-cover { margin: 0 0.4rem 0.5rem; padding: 0.4rem 0.5rem; }
+      .analysis-missing-cover .analysis-section-title { font-size: 0.6rem; }
+      .analysis-missing-cover .analysis-tags .type-badge { font-size: 0.45rem; }
+
+      .poke-slot[data-tip]:hover::after { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 0.6rem 0.4rem; }
+      .team-grid { gap: 0.3rem; padding: 0.5rem; }
+      .poke-slot { padding: 0.3rem 0.2rem; }
+      .poke-img-wrap { width: 36px; height: 36px; }
+      .poke-name { font-size: 0.55rem; }
+      .poke-level { font-size: 0.5rem; }
+      .refresh-btn { font-size: 0.7rem; padding: 0.35rem 0.8rem; }
+
+      .detail-modal-overlay { padding: 0.4rem; }
+      .detail-modal { border-radius: 12px; }
+      .detail-body { padding: 0.6rem 0.7rem 0.8rem; }
+      .detail-sprite-wrap { width: 80px; height: 80px; }
+      .detail-sprite { width: 68px; height: 68px; }
+      .detail-stat-row { grid-template-columns: 48px 1fr 26px; font-size: 0.62rem; }
+      .detail-stat-bar { height: 8px; }
+    }
+
+    @media (max-width: 360px) {
+      .team-grid { grid-template-columns: repeat(2, 1fr); gap: 0.25rem; padding: 0.4rem; }
+      .poke-img-wrap { width: 30px; height: 30px; }
+      .poke-slot.empty { min-height: 52px; }
+      .poke-slot .type-badge { font-size: 0.42rem; }
     }
   </style>
 </body>
