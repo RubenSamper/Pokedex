@@ -120,6 +120,7 @@
       gap: 1.5rem;
       max-width: 1200px;
       margin: 0 auto;
+      align-items: start;
     }
 
     .player-card {
@@ -649,10 +650,14 @@
             const slot = document.createElement('div');
             slot.className = 'poke-slot';
 
-            if (i < party.length) {
-              const pk = party[i];
+        if (i < party.length && party[i] != null) {
+          const pk = party[i];
 
-              // ── Mapeo de campos (API usa PascalCase) ──────────
+          // Guardamos datos para el modal de detalle
+          slot._pkData = pk;
+          slot.style.cursor = 'pointer';
+
+          // ── Mapeo de campos (API usa PascalCase) ──────────
               const pkName = getSpeciesName(pk) || 'unknown';
               const pkLevel = pk.Level ?? pk.level ?? pk.lvl ?? '?';
               const isShiny = pk.Shiny ?? pk.shiny ?? false;
@@ -694,6 +699,40 @@
           }
 
           card.appendChild(teamGrid);
+
+          // ── Botón de análisis de equipo ──
+          const analysisBtn = document.createElement('button');
+          analysisBtn.className = 'team-analysis-btn';
+          analysisBtn.textContent = '📊 Análisis';
+          analysisBtn.onclick = function() {
+            const panel = card.querySelector('.team-analysis-panel');
+            const isOpening = !panel.classList.contains('open');
+            // Cerrar cualquier otro análisis abierto
+            document.querySelectorAll('.team-analysis-panel.open').forEach(p => {
+              if (p !== panel) {
+                p.classList.remove('open');
+                const btn = p.closest('.player-card')?.querySelector('.team-analysis-btn');
+                if (btn) btn.textContent = '📊 Análisis';
+              }
+            });
+            if (isOpening) {
+              panel.classList.add('open');
+              analysisBtn.textContent = '📊 Cerrar';
+              if (!panel.innerHTML) {
+                panel.innerHTML = '<div class="analysis-loading">Analizando...</div>';
+                setTimeout(() => renderTeamAnalysis(panel, party.filter(p => p != null)), 50);
+              }
+            } else {
+              panel.classList.remove('open');
+              analysisBtn.textContent = '📊 Análisis';
+            }
+          };
+          card.appendChild(analysisBtn);
+
+          // Panel de análisis (oculto por defecto)
+          const analysisPanel = document.createElement('div');
+          analysisPanel.className = 'team-analysis-panel';
+          card.appendChild(analysisPanel);
         }
 
         grid.appendChild(card);
@@ -701,6 +740,207 @@
 
       root.innerHTML = '';
       root.appendChild(grid);
+    }
+
+    // ── Análisis de equipo (detallado por Pokémon) ──
+    function renderTeamAnalysis(panel, party) {
+      const activeParty = party.filter(p => p != null);
+      const partySize = activeParty.length;
+      const allTypes = Object.keys(TYPE_EFFECTS);
+
+      // Estructuras detalladas: tipo → lista de { nombre, porTipo }
+      const weakDetail = {};   // tipo atacante → [{ name, porType }]
+      const resistDetail = {};
+      const immuneDetail = {};
+      const moveCoverage = {}; // tipo movimiento → [name]
+
+      for (const pk of activeParty) {
+        const name = capitalize(getSpeciesName(pk) || '??');
+        const types = getApiTypes(pk);
+        const moves = pk.MoveSet ? Object.values(pk.MoveSet).filter(m => m.MoveName) : [];
+
+        // Defensa: para cada tipo del Pokémon, acumula cómo afecta a cada tipo atacante
+        for (const defenderType of types) {
+          const eff = TYPE_EFFECTS[defenderType];
+          if (!eff) continue;
+          // Débil a:
+          for (const atkType of eff.weak) {
+            if (!weakDetail[atkType]) weakDetail[atkType] = [];
+            if (!weakDetail[atkType].some(p => p.name === name)) {
+              weakDetail[atkType].push({ name, via: defenderType });
+            }
+          }
+          // Resistente a:
+          for (const atkType of eff.resist) {
+            if (!resistDetail[atkType]) resistDetail[atkType] = [];
+            if (!resistDetail[atkType].some(p => p.name === name)) {
+              resistDetail[atkType].push({ name, via: defenderType });
+            }
+          }
+          // Inmune a:
+          for (const atkType of eff.immune) {
+            if (!immuneDetail[atkType]) immuneDetail[atkType] = [];
+            if (!immuneDetail[atkType].some(p => p.name === name)) {
+              immuneDetail[atkType].push({ name, via: defenderType });
+            }
+          }
+        }
+
+        // Ofensiva: movimientos
+        for (const m of moves) {
+          if (m.MoveType) {
+            const mt = m.MoveType.toLowerCase();
+            if (!moveCoverage[mt]) moveCoverage[mt] = [];
+            if (!moveCoverage[mt].includes(name)) {
+              moveCoverage[mt].push(name);
+            }
+          }
+        }
+      }
+
+      // Clasificar y ordenar
+      const weaknesses = Object.entries(weakDetail)
+        .map(([type, pks]) => ({ type, count: pks.length, pks }))
+        .filter(w => w.count >= 2)
+        .sort((a,b) => b.count - a.count);
+
+      const resistances = Object.entries(resistDetail)
+        .map(([type, pks]) => ({ type, count: pks.length, pks }))
+        .filter(r => r.count >= 2)
+        .sort((a,b) => b.count - a.count);
+
+      const immunities = Object.entries(immuneDetail)
+        .map(([type, pks]) => ({ type, count: pks.length, pks }))
+        .filter(i => i.count > 0)
+        .sort((a,b) => b.count - a.count);
+
+      const coverage = Object.entries(moveCoverage)
+        .map(([type, pks]) => ({ type, count: pks.length, pks }))
+        .sort((a,b) => b.count - a.count);
+
+      // Métricas de resumen
+      const criticalWeak = weaknesses.filter(w => w.count >= 3);
+      const hasGoodResists = resistances.length >= 3;
+      const manyWeaknesses = weaknesses.length >= 3;
+      const hasImmunity = immunities.length > 0;
+      const goodCoverage = coverage.length >= 6;
+
+      let html = '';
+
+      // ── Resumen ──
+      html += `<div class="analysis-summary">`;
+      const summaries = [];
+      if (criticalWeak.length) {
+        summaries.push(`<span style="color:#f87171">🔴 Crítico: ${criticalWeak.length} tipo(s) de ataque que afectan a 3+ Pokémon</span>`);
+      }
+      if (manyWeaknesses && criticalWeak.length !== weaknesses.length) {
+        summaries.push(`<span style="color:#fb923c">🟡 Precaución: ${weaknesses.length} tipos de golpe son débiles para 2+ Pokémon</span>`);
+      }
+      if (hasGoodResists) {
+        summaries.push(`<span style="color:#4ade80">🟢 Sólido: ${resistances.length} tipos son resistidos por 2+ Pokémon</span>`);
+      }
+      if (hasImmunity) {
+        summaries.push(`<span style="color:#a78bfa">🟣 Inmunidad: ${immunities.length} tipo(s) anulado(s) por completo</span>`);
+      }
+      if (goodCoverage) {
+        summaries.push(`<span style="color:#60a5fa">🔵 Cobertura: ${coverage.length} tipos distintos en movimientos</span>`);
+      }
+      if (!summaries.length) html += `<span style="color:var(--muted)">Equipo equilibrado sin puntos destacables</span>`;
+      else html += summaries.join('');
+      html += `</div>`;
+
+      // ── Debilidades (detalle) ──
+      html += `<div class="analysis-section">
+        <div class="analysis-section-title" style="color:#f87171">😰 Debilidades <span style="font-weight:400;font-size:0.65rem;color:var(--muted)">(tipos de ataque que hieren a 2+ Pokémon)</span></div>`;
+      if (weaknesses.length) {
+        html += weaknesses.map(w => {
+          const isCritical = w.count >= 3;
+          const borderStyle = isCritical ? 'border-left:3px solid #f87171;padding-left:0.5rem' : '';
+          return `<div class="analysis-detail-row" style="${borderStyle}">
+            <div class="analysis-detail-head">
+              <span class="type-badge type-${w.type}">${w.type}</span>
+              <span class="analysis-count">${w.count}/${partySize} Pokémon</span>
+              ${isCritical ? '<span style="color:#f87171;font-size:0.6rem;font-weight:700">⚠️ CRÍTICO</span>' : ''}
+            </div>
+            <div class="analysis-pokemon-list">
+              ${w.pks.map(p => `<span class="analysis-pokemon-tag" style="color:#f87171">${p.name} <span style="color:var(--muted);font-size:0.55rem">(vía ${p.via})</span></span>`).join('')}
+            </div>
+          </div>`;
+        }).join('');
+      } else {
+        html += `<div style="color:var(--muted);font-size:0.75rem;padding:0.3rem 0">Ninguna debilidad colectiva destacable ✅</div>`;
+      }
+      html += `</div>`;
+
+      // ── Resistencias (detalle) ──
+      html += `<div class="analysis-section">
+        <div class="analysis-section-title" style="color:#4ade80">💪 Resistencias <span style="font-weight:400;font-size:0.65rem;color:var(--muted)">(tipos que 2+ Pokémon resisten)</span></div>`;
+      if (resistances.length) {
+        html += resistances.map(r =>
+          `<div class="analysis-detail-row">
+            <div class="analysis-detail-head">
+              <span class="type-badge type-${r.type}">${r.type}</span>
+              <span class="analysis-count">${r.count}/${partySize} Pokémon</span>
+            </div>
+            <div class="analysis-pokemon-list">
+              ${r.pks.map(p => `<span class="analysis-pokemon-tag" style="color:#4ade80">${p.name} <span style="color:var(--muted);font-size:0.55rem">(vía ${p.via})</span></span>`).join('')}
+            </div>
+          </div>`
+        ).join('');
+      } else {
+        html += `<div style="color:var(--muted);font-size:0.75rem;padding:0.3rem 0">Sin resistencias colectivas destacables</div>`;
+      }
+      html += `</div>`;
+
+      // ── Inmunidades ──
+      if (immunities.length) {
+        html += `<div class="analysis-section">
+          <div class="analysis-section-title" style="color:#a78bfa">🚫 Inmunidades</div>`;
+        html += immunities.map(im =>
+          `<div class="analysis-detail-row">
+            <div class="analysis-detail-head">
+              <span class="type-badge type-${im.type}">${im.type}</span>
+              <span class="analysis-count">${im.count}/${partySize} Pokémon</span>
+            </div>
+            <div class="analysis-pokemon-list">
+              ${im.pks.map(p => `<span class="analysis-pokemon-tag" style="color:#a78bfa">${p.name} <span style="color:var(--muted);font-size:0.55rem">(vía ${p.via})</span></span>`).join('')}
+            </div>
+          </div>`
+        ).join('');
+        html += `</div>`;
+      }
+
+      // ── Cobertura ofensiva ──
+      html += `<div class="analysis-section">
+        <div class="analysis-section-title" style="color:#60a5fa">⚔ Cobertura ofensiva <span style="font-weight:400;font-size:0.65rem;color:var(--muted)">(tipos de movimiento disponibles)</span></div>`;
+      if (coverage.length) {
+        html += coverage.map(c =>
+          `<div class="analysis-detail-row">
+            <div class="analysis-detail-head">
+              <span class="type-badge type-${c.type}">${c.type}</span>
+              <span class="analysis-count">${c.count} Pokémon</span>
+            </div>
+            <div class="analysis-pokemon-list">
+              ${c.pks.map(p => `<span class="analysis-pokemon-tag" style="color:#60a5fa">${p}</span>`).join('')}
+            </div>
+          </div>`
+        ).join('');
+      } else {
+        html += `<div style="color:var(--muted);font-size:0.75rem;padding:0.3rem 0">Sin datos de movimientos</div>`;
+      }
+      html += `</div>`;
+
+      // Tipos sin cobertura
+      const coveredTypes = coverage.map(c => c.type);
+      const missing = allTypes.filter(t => !coveredTypes.includes(t));
+      if (missing.length > 0 && missing.length < 18) {
+        html += `<div class="analysis-missing-cover">
+          <div class="analysis-section-title">💡 Tipos sin cobertura ofensiva</div>
+          <div class="analysis-tags">${missing.map(t => `<span class="type-badge type-${t}">${t}</span>`).join('')}</div>
+        </div>`;
+      }
+
+      panel.innerHTML = html;
     }
 
     async function loadTeams(manual = false) {
@@ -748,7 +988,556 @@
     loadTeams();
     // Auto-refresh cada 2 minutos
     setInterval(() => loadTeams(), 2 * 60 * 1000);
+
+    // ═══════════════════════════════════════════════════════════════
+    //  MODAL DE DETALLE DE POKÉMON
+    // ═══════════════════════════════════════════════════════════════
+
+    const TYPE_EFFECTS = {
+      normal:   { weak:["fighting"],resist:[],immune:["ghost"] },
+      fire:     { weak:["water","ground","rock"],resist:["fire","grass","ice","bug","steel","fairy"],immune:[] },
+      water:    { weak:["electric","grass"],resist:["fire","water","ice","steel"],immune:[] },
+      electric: { weak:["ground"],resist:["electric","flying","steel"],immune:[] },
+      grass:    { weak:["fire","ice","poison","flying","bug"],resist:["water","electric","grass","ground"],immune:[] },
+      ice:      { weak:["fire","fighting","rock","steel"],resist:["ice"],immune:[] },
+      fighting: { weak:["flying","psychic","fairy"],resist:["bug","rock","dark"],immune:[] },
+      poison:   { weak:["ground","psychic"],resist:["grass","fighting","poison","bug","fairy"],immune:[] },
+      ground:   { weak:["water","grass","ice"],resist:["poison","rock"],immune:["electric"] },
+      flying:   { weak:["electric","ice","rock"],resist:["grass","fighting","bug"],immune:["ground"] },
+      psychic:  { weak:["bug","ghost","dark"],resist:["fighting","psychic"],immune:[] },
+      bug:      { weak:["fire","flying","rock"],resist:["grass","fighting","ground"],immune:[] },
+      rock:     { weak:["water","grass","fighting","ground","steel"],resist:["normal","fire","poison","flying"],immune:[] },
+      ghost:    { weak:["ghost","dark"],resist:["poison","bug"],immune:["normal","fighting"] },
+      dragon:   { weak:["ice","dragon","fairy"],resist:["fire","water","electric","grass"],immune:[] },
+      dark:     { weak:["fighting","bug","fairy"],resist:["ghost","dark"],immune:["psychic"] },
+      steel:    { weak:["fire","fighting","ground"],resist:["normal","grass","ice","flying","psychic","bug","rock","dragon","steel","fairy"],immune:["poison"] },
+      fairy:    { weak:["poison","steel"],resist:["fighting","bug","dark"],immune:["dragon"] }
+    };
+
+    const STAT_NAMES = { hp:"PS",attack:"Ataque",defense:"Defensa","special-attack":"At.Esp","special-defense":"Def.Esp",speed:"Velocidad" };
+    const STAT_COLORS = { hp:"#4ade80",attack:"#f87171",defense:"#facc15","special-attack":"#60a5fa","special-defense":"#a78bfa",speed:"#34d399" };
+    const STAT_MAX = { hp:255,attack:255,defense:255,"special-attack":255,"special-defense":255,speed:255 };
+
+    const NATURE_MAP = {
+      "hardy":{},"lonely":{up:"attack",down:"defense"},"brave":{up:"attack",down:"speed"},"adamant":{up:"attack",down:"special-attack"},"naughty":{up:"attack",down:"special-defense"},"bold":{up:"defense",down:"attack"},
+      "docile":{},"relaxed":{up:"defense",down:"speed"},"impish":{up:"defense",down:"special-attack"},"lax":{up:"defense",down:"special-defense"},"timid":{up:"speed",down:"attack"},
+      "hasty":{up:"speed",down:"defense"},"serious":{},"jolly":{up:"speed",down:"special-attack"},"naive":{up:"speed",down:"special-defense"},"modest":{up:"special-attack",down:"attack"},
+      "mild":{up:"special-attack",down:"defense"},"quiet":{up:"special-attack",down:"speed"},"bashful":{},"rash":{up:"special-attack",down:"special-defense"},"calm":{up:"special-defense",down:"attack"},
+      "gentle":{up:"special-defense",down:"defense"},"sassy":{up:"special-defense",down:"speed"},"careful":{up:"special-defense",down:"special-attack"},"quirky":{}
+    };
+
+    // Mapeo de nombres Cobblemon → PokeAPI
+    function cobStat(name) {
+      const map = { hp:"hp",attack:"attack",defence:"defense",special_attack:"special-attack",special_defence:"special-defense",speed:"speed" };
+      return map[name.replace('cobblemon:','')] || name;
+    }
+
+    function calcStat(base, iv, ev, level, natureMult = 1) {
+      return Math.floor((Math.floor((2 * base + iv + Math.floor(ev / 4)) * level / 100) + 5) * natureMult);
+    }
+    function calcHP(base, iv, ev, level) {
+      return Math.floor((2 * base + iv + Math.floor(ev / 4)) * level / 100) + level + 10;
+    }
+
+    let detailModal = null;
+    let detailData = null;
+
+    function getEffectiveness(types) {
+      const defs = { weak:{}, resist:{}, immune:[] };
+      for (const t of types) {
+        const e = TYPE_EFFECTS[t];
+        if (!e) continue;
+        for (const w of e.weak) defs.weak[w] = (defs.weak[w]||0) + 1;
+        for (const r of e.resist) defs.resist[r] = (defs.resist[r]||0) + 1;
+        for (const i of e.immune) if (!defs.immune.includes(i)) defs.immune.push(i);
+      }
+      // Calcular efectividad neta
+      const result = [];
+      const allTypes = Object.keys(TYPE_EFFECTS);
+      for (const t of allTypes) {
+        if (defs.immune.includes(t)) continue;
+        let mult = 1;
+        mult *= (defs.weak[t]||0) * 2;
+        mult /= Math.pow(2, defs.resist[t]||0);
+        if (mult > 1) result.push({ type: t, mult, label: mult >= 4 ? '4×' : '2×', cls: 'weak' });
+        else if (mult < 1) result.push({ type: t, mult, label: mult <= 0.25 ? '¼×' : '½×', cls: 'resist' });
+      }
+      return result.sort((a,b) => b.mult - a.mult);
+    }
+
+    function extractIV(pk, stat) {
+      const ivs = pk.IVs?.Base || pk.ivs || {};
+      const val = ivs[`cobblemon:${stat}`] ?? ivs[stat] ?? 0;
+      return typeof val === 'number' ? val : 0;
+    }
+    function extractEV(pk, stat) {
+      const evs = pk.EVs || pk.evs || {};
+      const val = evs[`cobblemon:${stat}`] ?? evs[stat] ?? 0;
+      return typeof val === 'number' ? val : 0;
+    }
+
+    // Orden de stats para mostrar
+    const STAT_ORDER = ['hp','attack','defense','special-attack','special-defense','speed'];
+    const COB_STAT_MAP = { hp:'hp', attack:'attack', defense:'defence', 'special-attack':'special_attack', 'special-defense':'special_defence', speed:'speed' };
+
+    async function showPokemonDetail(pk) {
+      const pkName = getSpeciesName(pk);
+      const dexNum = pk.DexNumber ?? pk.dexNumber ?? null;
+      const types = getApiTypes(pk);
+      const level = pk.Level ?? pk.level ?? 50;
+      const isShiny = pk.Shiny ?? pk.shiny ?? false;
+      const abilityName = pk.Ability?.AbilityName || '';
+      const rawNature = pk.Nature || '';
+      const natureKey = rawNature.toLowerCase();
+      const natureEffect = NATURE_MAP[natureKey] || {};
+      const moves = pk.MoveSet ? Object.values(pk.MoveSet).filter(m => m.MoveName) : [];
+      const spriteUrl = getSpriteUrl(pkName, isShiny, dexNum);
+      const currentHp = pk.Health ?? null;
+
+      // Crear o reusar modal
+      if (!detailModal) {
+        detailModal = document.createElement('div');
+        detailModal.className = 'detail-modal-overlay';
+        detailModal.addEventListener('click', e => { if (e.target === detailModal) closeDetail(); });
+        document.body.appendChild(detailModal);
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+      }
+
+      detailModal.innerHTML = `
+        <div class="detail-modal">
+          <div class="detail-header">
+            <span class="detail-close" onclick="closeDetail()">&times;</span>
+          </div>
+          <div class="detail-body">
+            <div class="detail-main">
+              <div class="detail-sprite-section">
+                <div class="detail-sprite-wrap">
+                  <img src="${spriteUrl}" alt="${pkName}" onerror="this.style.opacity='0.3'" class="detail-sprite">
+                  ${isShiny ? '<span class="shiny-star" style="font-size:1.4rem;position:absolute;top:-4px;right:-4px">✨</span>' : ''}
+                </div>
+                <div class="detail-name">${capitalize(pkName)}${dexNum ? ` <span class="detail-dex">#${dexNum}</span>` : ''}</div>
+                <div class="detail-level">Nv. ${level}</div>
+                <div class="detail-types">
+                  ${types.map(t => `<span class="type-badge type-${t}">${t}</span>`).join('')}
+                </div>
+                <div class="detail-meta">
+                  ${abilityName ? `<div class="detail-meta-item"><span class="detail-meta-label">Habilidad</span><span>${abilityName}</span></div>` : ''}
+                  ${rawNature ? `<div class="detail-meta-item"><span class="detail-meta-label">Naturaleza</span><span>${rawNature}${natureEffect.up ? ' <span style="color:#4ade80">↑' + (STAT_NAMES[natureEffect.up]||natureEffect.up) + '</span>' : ''}${natureEffect.down ? ' <span style="color:#f87171">↓' + (STAT_NAMES[natureEffect.down]||natureEffect.down) + '</span>' : ''}</span></div>` : ''}
+                  ${currentHp !== null ? `<div class="detail-meta-item"><span class="detail-meta-label">PS actual</span><span>${currentHp}</span></div>` : ''}
+                </div>
+              </div>
+              <div class="detail-stats-section">
+                <h3>Stats Reales <span style="font-weight:400;font-size:0.7rem;color:var(--muted)">(calculados con IVs/EVs/Naturaleza)</span></h3>
+                <div id="detailStats"><div class="detail-loading">Calculando stats reales...</div></div>
+                <h3 style="margin-top:1.2rem">Efectividad</h3>
+                <div id="detailEffectiveness"><div class="detail-loading">Calculando...</div></div>
+              </div>
+            </div>
+            ${moves.length ? `
+            <div class="detail-moves-section">
+              <h3>Movimientos</h3>
+              <div class="detail-moves-grid">
+                ${moves.map(m => `
+                  <div class="detail-move">
+                    <span class="detail-move-name">${m.MoveName.replace(/-/g,' ')}</span>
+                    ${m.MoveType ? `<span class="type-badge type-${m.MoveType.toLowerCase()}">${m.MoveType}</span>` : ''}
+                    ${m.MovePP ? `<span class="detail-move-pp">PP ${m.MovePP}</span>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </div>` : ''}
+          </div>
+        </div>
+      `;
+
+      detailModal.classList.remove('oculto');
+
+      const statsContainer = document.getElementById('detailStats');
+      const effContainer = document.getElementById('detailEffectiveness');
+
+      // Cargar base stats desde PokeAPI y calcular stats reales
+      if (dexNum) {
+        try {
+          const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${dexNum}`);
+          if (res.ok) {
+            const data = await res.json();
+            detailData = data;
+
+            // Calcular stats reales
+            const statRows = STAT_ORDER.map(s => {
+              const baseStat = data.stats.find(st => st.stat.name === s)?.base_stat || 50;
+              const cobStatName = COB_STAT_MAP[s];
+              const iv = extractIV(pk, cobStatName);
+              const ev = extractEV(pk, cobStatName);
+
+              let actual, maxPossible;
+              if (s === 'hp') {
+                actual = calcHP(baseStat, iv, ev, level);
+                maxPossible = calcHP(baseStat, 31, 252, level);
+              } else {
+                const natureMult = natureEffect.up === s ? 1.1 : natureEffect.down === s ? 0.9 : 1;
+                actual = calcStat(baseStat, iv, ev, level, natureMult);
+                maxPossible = calcStat(baseStat, 31, 252, level, natureEffect.up === s ? 1.1 : 1);
+              }
+
+              const pct = Math.min((actual / maxPossible) * 100, 100);
+              const color = STAT_COLORS[s] || '#888';
+              const natureArrow = natureEffect.up === s ? ' ↑' : natureEffect.down === s ? ' ↓' : '';
+
+              return {
+                name: (STAT_NAMES[s] || s) + natureArrow,
+                actual,
+                maxPossible,
+                pct,
+                color,
+                base: baseStat,
+                iv,
+                ev
+              };
+            });
+
+            statsContainer.innerHTML = statRows.map(r => `
+              <div class="detail-stat-row">
+                <span class="detail-stat-label">${r.name}</span>
+                <div class="detail-stat-bar-wrap">
+                  <div class="detail-stat-bar"><div class="detail-stat-fill" style="width:${r.pct}%;background:${r.color}"></div></div>
+                  <div class="detail-stat-sub">Base ${r.base} · IV ${r.iv} · EV ${r.ev}</div>
+                </div>
+                <span class="detail-stat-val">${r.actual}</span>
+              </div>
+            `).join('');
+
+          } else {
+            statsContainer.innerHTML = '<div class="detail-loading" style="color:var(--muted)">Stats no disponibles</div>';
+          }
+        } catch {
+          statsContainer.innerHTML = '<div class="detail-loading" style="color:var(--muted)">Error al cargar stats</div>';
+        }
+      } else {
+        statsContainer.innerHTML = '<div class="detail-loading" style="color:var(--muted)">Stats no disponibles</div>';
+      }
+
+      // Mostrar efectividad
+      if (types.length) {
+        const eff = getEffectiveness(types);
+        const weak = eff.filter(e => e.cls === 'weak');
+        const resist = eff.filter(e => e.cls === 'resist');
+        let html = '';
+        if (weak.length) {
+          html += `<div class="eff-section"><span class="eff-label">Débil a:</span> ${weak.slice(0,8).map(e => `<span class="type-badge type-${e.type} eff-${e.cls}">${e.label}</span>`).join(' ')}</div>`;
+        } else {
+          html += `<div class="eff-section" style="color:var(--muted)">Sin debilidades destacadas</div>`;
+        }
+        if (resist.length) {
+          html += `<div class="eff-section" style="margin-top:6px"><span class="eff-label">Resiste:</span> ${resist.slice(0,8).map(e => `<span class="type-badge type-${e.type} eff-${e.cls}">${e.label}</span>`).join(' ')}</div>`;
+        }
+        effContainer.innerHTML = html;
+      } else {
+        effContainer.innerHTML = '<div class="detail-loading" style="color:var(--muted)">Sin datos de tipos</div>';
+      }
+    }
+
+    function closeDetail() {
+      if (detailModal) detailModal.classList.add('oculto');
+    }
+
+    // Enlazar clicks en los slots
+    document.addEventListener('click', e => {
+      const slot = e.target.closest('.poke-slot:not(.empty)');
+      if (slot && slot._pkData) {
+        showPokemonDetail(slot._pkData);
+      }
+    });
   </script>
+
+  <style>
+    /* ── Modal de detalle ── */
+    .detail-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      backdrop-filter: blur(4px);
+    }
+    .detail-modal-overlay.oculto { display: none; }
+    .detail-modal {
+      background: var(--card, #13132a);
+      border: 1px solid var(--border, #2a2a55);
+      border-radius: 20px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: fadeIn 0.25s ease;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .detail-header {
+      display: flex;
+      justify-content: flex-end;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border, #2a2a55);
+    }
+    .detail-close {
+      font-size: 1.8rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--muted, #7070aa);
+      transition: color 0.2s;
+    }
+    .detail-close:hover { color: var(--accent2, #ff6584); }
+    .detail-body { padding: 1rem 1.2rem 1.2rem; }
+    .detail-main {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 1.2rem;
+    }
+    .detail-sprite-section { text-align: center; }
+    .detail-sprite-wrap {
+      position: relative;
+      width: 130px; height: 130px;
+      margin: 0 auto 0.5rem;
+      background: var(--card2, #1a1a35);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border, #2a2a55);
+    }
+    .detail-sprite { width: 110px; height: 110px; object-fit: contain; image-rendering: pixelated; }
+    .detail-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.2rem; }
+    .detail-dex { color: var(--muted, #7070aa); font-weight: 400; font-size: 0.8rem; }
+    .detail-level { font-size: 0.8rem; color: var(--muted, #7070aa); margin-bottom: 0.5rem; }
+    .detail-types { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; margin-bottom: 0.6rem; }
+    .detail-meta { display: grid; gap: 4px; font-size: 0.78rem; }
+    .detail-meta-item { display: flex; justify-content: space-between; gap: 6px; }
+    .detail-meta-label { color: var(--muted, #7070aa); }
+
+    .detail-stats-section h3, .detail-moves-section h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem;
+      color: var(--text, #e8e8ff);
+    }
+    .detail-stat-row {
+      display: grid;
+      grid-template-columns: 68px 1fr 36px;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      font-size: 0.75rem;
+    }
+    .detail-stat-label { color: var(--muted, #7070aa); text-align: right; font-weight: 600; white-space: nowrap; }
+    .detail-stat-bar-wrap { display: flex; flex-direction: column; gap: 1px; }
+    .detail-stat-bar {
+      height: 14px;
+      background: var(--border, #2a2a55);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .detail-stat-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+    .detail-stat-sub { font-size: 0.58rem; color: var(--muted, #7070aa); opacity: 0.7; }
+    .detail-stat-val { font-weight: 700; font-size: 0.82rem; text-align: right; }
+
+    .detail-loading { font-size: 0.78rem; color: var(--muted, #7070aa); padding: 0.5rem 0; }
+
+    .eff-section { font-size: 0.78rem; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .eff-label { color: var(--muted, #7070aa); font-weight: 600; margin-right: 2px; }
+    .eff-section .type-badge { font-size: 0.6rem; padding: 0.1rem 0.4rem; opacity: 0.9; }
+    .eff-weak { box-shadow: inset 0 0 0 2px #f87171; }
+    .eff-resist { box-shadow: inset 0 0 0 2px #4ade80; }
+
+    .detail-moves-section { margin-top: 1rem; }
+    .detail-moves-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .detail-move {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0.4rem 0.6rem;
+      background: var(--card2, #1a1a35);
+      border: 1px solid var(--border, #2a2a55);
+      border-radius: 10px;
+      font-size: 0.72rem;
+    }
+    .detail-move-name { font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .detail-move .type-badge { font-size: 0.55rem; padding: 0.05rem 0.3rem; }
+    .detail-move-pp { color: var(--muted, #7070aa); font-size: 0.65rem; white-space: nowrap; }
+
+    /* ── Análisis de equipo ── */
+    .team-analysis-btn {
+      display: block;
+      width: calc(100% - 2rem);
+      margin: 0.5rem 1rem 0;
+      padding: 0.45rem 0;
+      background: linear-gradient(135deg, var(--card2, #1a1a35), rgba(108,99,255,0.06));
+      border: 1px solid var(--border, #2a2a55);
+      border-radius: 999px;
+      color: var(--muted, #7070aa);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .team-analysis-btn:hover {
+      border-color: var(--accent, #6c63ff);
+      color: #fff;
+      background: linear-gradient(135deg, rgba(108,99,255,0.15), rgba(108,99,255,0.05));
+      box-shadow: 0 0 20px rgba(108,99,255,0.08);
+    }
+    .team-analysis-panel {
+      display: none;
+      padding: 0;
+      border-top: 1px solid var(--border, #2a2a55);
+      margin-top: 0.5rem;
+      background: rgba(0,0,0,0.06);
+      animation: fadeSlideIn 0.3s ease;
+    }
+    .team-analysis-panel.open { display: block; }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; max-height: 0; }
+      to   { opacity: 1; max-height: 2000px; }
+    }
+
+    .analysis-loading {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+      padding: 1.5rem 1rem;
+      background: rgba(0,0,0,0.04);
+    }
+
+    .analysis-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding: 0.7rem 1rem 0.5rem;
+      font-size: 0.68rem;
+    }
+    .analysis-summary span {
+      padding: 0.35rem 0.6rem;
+      background: rgba(0,0,0,0.07);
+      border-radius: 10px;
+      border-left: 3px solid transparent;
+      backdrop-filter: blur(2px);
+    }
+    .analysis-summary span:first-child { margin-top: 0; }
+
+    .analysis-section {
+      margin: 0 0.6rem 0.7rem;
+      background: rgba(0,0,0,0.04);
+      border-radius: 14px;
+      padding: 0.6rem 0.7rem;
+      border: 1px solid rgba(255,255,255,0.03);
+    }
+    .analysis-section-title {
+      font-weight: 700;
+      font-size: 0.72rem;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.01em;
+    }
+    .analysis-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .analysis-tags .type-badge {
+      font-size: 0.6rem;
+      padding: 0.1rem 0.45rem;
+    }
+
+    .analysis-count {
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 0.6rem;
+      font-weight: 500;
+    }
+
+    .analysis-detail-row {
+      margin-bottom: 5px;
+      padding: 0.4rem 0.55rem;
+      background: rgba(0,0,0,0.12);
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.03);
+      transition: background 0.2s;
+    }
+    .analysis-detail-row:last-child { margin-bottom: 0; }
+    .analysis-detail-row:hover { background: rgba(0,0,0,0.18); }
+
+    .analysis-detail-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .analysis-detail-head .type-badge {
+      font-size: 0.55rem;
+      padding: 0.07rem 0.35rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .analysis-detail-head .analysis-count {
+      font-size: 0.6rem;
+      background: rgba(255,255,255,0.04);
+      padding: 0.05rem 0.4rem;
+      border-radius: 999px;
+    }
+    .analysis-pokemon-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      padding-left: 0.15rem;
+    }
+    .analysis-pokemon-tag {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.4rem;
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,0.04);
+      transition: all 0.2s;
+    }
+    .analysis-pokemon-tag:hover {
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-1px);
+    }
+    .analysis-pokemon-tag span { font-size: 0.55rem; }
+
+    .analysis-missing-cover {
+      margin: 0 0.6rem 0.7rem;
+      padding: 0.5rem 0.7rem;
+      background: rgba(251,191,36,0.04);
+      border-radius: 14px;
+      border: 1px solid rgba(251,191,36,0.08);
+    }
+    .analysis-missing-cover .analysis-section-title {
+      font-size: 0.65rem;
+      color: #fbbf24;
+      margin-bottom: 0.4rem;
+    }
+    .analysis-missing-cover .analysis-tags .type-badge {
+      font-size: 0.5rem;
+      padding: 0.05rem 0.3rem;
+      opacity: 0.55;
+    }
+    .analysis-missing-cover .analysis-tags .type-badge:hover { opacity: 0.85; }
+
+    @media (max-width: 520px) {
+      .detail-main { grid-template-columns: 1fr; }
+      .detail-sprite-wrap { width: 100px; height: 100px; }
+      .detail-sprite { width: 85px; height: 85px; }
+      .detail-moves-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </body>
 
 </html>
