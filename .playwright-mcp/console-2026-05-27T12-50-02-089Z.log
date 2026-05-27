@@ -1,0 +1,47 @@
+[      78ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:3000/favicon.ico:0
+[     809ms] [LOG] CobblemonExtras API response: {total: 2, count: 2, missingCount: 18, players: Object} @ http://localhost:3000/:545
+[    3609ms] [LOG] CobblemonExtras API response: {total: 2, count: 2, missingCount: 18, players: Object} @ http://localhost:3000/:545
+[  122357ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[  122357ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[  242368ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[  242368ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[  362352ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[  362352ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[  482358ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[  482359ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[  602363ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[  602363ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[  722357ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[  722357ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[  842365ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[  842365ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[  962383ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[  962383ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[ 1082377ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[ 1082378ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[ 1202376ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[ 1202376ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554
+[ 1322367ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:3000/api/players:0
+[ 1322368ms] [ERROR] Error fetching teams: TypeError: Failed to fetch
+    at loadTeams (http://localhost:3000/:543:23)
+    at http://localhost:3000/:570:19 @ http://localhost:3000/:554

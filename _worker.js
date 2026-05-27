@@ -9,7 +9,7 @@
  *   2. Ve a "Workers & Pages" > "Create application" > "Worker"
  *   3. Copia este código en el editor y dale a "Deploy"
  *   4. Copias la URL de tu worker (ej: https://mi-worker.nombre.workers.dev)
- *   5. En server-teams.html cambias PROXY_BASE por esa URL
+ *   5. En teams.html cambias PROXY_BASE por esa URL
  *
  * También puedes desplegarlo con wrangler:
  *   npx wrangler deploy _worker.js --name pokedex-proxy

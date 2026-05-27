@@ -106,7 +106,7 @@ const server = http.createServer((req, res) => {
 
   // Servir estáticos
   let filePath = url.pathname === '/'
-    ? '/server-teams.html'
+    ? '/teams.html'
     : url.pathname;
 
   filePath = path.join(__dirname, filePath);
