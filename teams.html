@@ -7,6 +7,8 @@
   <title>Equipos</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@300;400;600;700&display=swap"
     rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
     :root {
       --bg: #0d0d1a;
@@ -130,6 +132,14 @@
       overflow: hidden;
       transition: transform 0.2s, box-shadow 0.2s;
       animation: fadeIn 0.4s ease both;
+      display: flex;
+      flex-direction: column;
+    }
+    .player-card .team-grid {
+      flex: 1;
+    }
+    .player-card .team-analysis-btn {
+      margin-top: auto;
     }
 
     .player-card:hover {
@@ -233,11 +243,16 @@
       background: var(--card2);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 0.6rem 0.4rem;
+      padding: 0.6rem 0.3rem 0.4rem;
       text-align: center;
       transition: border-color 0.2s;
       cursor: default;
       position: relative;
+      height: 125px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
     }
 
     .poke-slot:hover {
@@ -246,7 +261,7 @@
 
     .poke-slot.empty {
       opacity: 0.3;
-      min-height: 90px;
+      justify-content: center;
     }
 
     .poke-img-wrap {
@@ -284,6 +299,31 @@
       font-size: 0.65rem;
       color: var(--muted);
       margin-top: 0.1rem;
+    }
+    .poke-item {
+      margin-top: 0.15rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 18px;
+    }
+    .item-icon {
+      width: 32px;
+      height: 32px;
+      image-rendering: pixelated;
+      flex-shrink: 0;
+      cursor: help;
+    }
+    .item-empty-icon {
+      color: var(--muted);
+      opacity: 0.35;
+      flex-shrink: 0;
+    }
+    .item-icon-detail {
+      width: 40px;
+      height: 40px;
+      image-rendering: pixelated;
+      cursor: help;
     }
 
     .poke-hp-bar {
@@ -501,6 +541,27 @@
 
   <div id="root"></div>
 
+  <div class="chart-section" id="chartSection" style="display:none">
+    <div class="chart-header">
+      <h2>✨ Shinies capturados</h2>
+      <span class="chart-subtitle">Total de shinies que tiene cada jugador en su PC</span>
+      <div class="chart-header-right">
+        <input class="chart-filter" id="chartFilter" type="text" placeholder="Filtrar jugador..." autocomplete="off">
+        <span class="chart-total" id="chartTotal"></span>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="shinyChart"></canvas>
+    </div>
+    <div class="chart-detail" id="chartDetail" style="display:none">
+      <div class="chart-detail-header">
+        <span class="chart-detail-title" id="chartDetailTitle"></span>
+        <button class="chart-detail-close" id="chartDetailClose">&times;</button>
+      </div>
+      <div class="chart-detail-body" id="chartDetailBody"></div>
+    </div>
+  </div>
+
   <script>
     const SERVER_ID = '6a16d56a9bd4b6296506e1d7';
 
@@ -683,8 +744,9 @@
             </div>
             <div class="poke-name">${capitalize(pkName)}</div>
             <div class="poke-level">Nv. ${pkLevel}</div>
-            ${types.length ? `<span class="type-badge type-${types[0]}">${types[0]}</span>` : ''}
-            ${currentHp !== null && maxHp ? `
+              ${types.length ? `<span class="type-badge type-${types[0]}">${types[0]}</span>` : ''}
+              <div class="poke-item">${pk.HeldItem && pk.HeldItem.id ? `<img class="item-icon" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${pk.HeldItem.id.split(':')[1].replace(/_/g, '-')}.png" alt="${pk.HeldItem.id.split(':')[1].replace(/_/g, ' ')}" title="${pk.HeldItem.id.split(':')[1].replace(/_/g, ' ')}" onerror="this.style.display='none'" loading="lazy">` : `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="item-empty-icon" viewBox="0 0 16 16"><path d="M15 8a6.97 6.97 0 0 0-1.71-4.584l-9.874 9.875A7 7 0 0 0 15 8M2.71 12.584l9.874-9.875a7 7 0 0 0-9.874 9.874ZM16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0"/></svg>`}</div>
+              ${currentHp !== null && maxHp ? `
               <div class="poke-hp-bar">
                 <div class="poke-hp-fill ${getHpClass(hpPct)}" style="width:${hpPct}%"></div>
               </div>
@@ -740,6 +802,8 @@
 
       root.innerHTML = '';
       root.appendChild(grid);
+
+      renderShinyChart(data);
     }
 
     // ── Análisis de equipo (detallado por Pokémon) ──
@@ -943,6 +1007,225 @@
       panel.innerHTML = html;
     }
 
+    Chart.register(ChartDataLabels);
+
+    let shinyChartInstance = null;
+    let shinyChartData = null;
+
+    function renderShinyChart(data) {
+      const players = normalizePlayersResponse(data);
+      const section = document.getElementById('chartSection');
+
+      if (!players || players.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+
+      const labels = [];
+      const counts = [];
+      const playerShinyMap = {};
+
+      for (const player of players) {
+        let shinyCount = 0;
+        const shinyList = [];
+        const pc = player.pc;
+        if (Array.isArray(pc)) {
+          for (let bi = 0; bi < pc.length; bi++) {
+            const box = pc[bi];
+            if (Array.isArray(box)) {
+              for (const slot of box) {
+                if (slot && (slot.Shiny ?? slot.shiny ?? false)) {
+                  shinyCount++;
+                  const species = slot.Species || slot.species || '';
+                  const name = species.includes(':') ? species.split(':')[1] : species;
+                  shinyList.push({
+                    name: name,
+                    nickname: slot.Nickname || '',
+                    dex: slot.DexNumber || slot.dexNumber || null,
+                    level: slot.Level ?? slot.level ?? '?',
+                    types: [slot.Type1, slot.Type2].filter(Boolean),
+                    box: bi + 1,
+                    sprite: (slot.DexNumber || slot.dexNumber)
+                      ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${slot.DexNumber || slot.dexNumber}.png`
+                      : null
+                  });
+                }
+              }
+            }
+          }
+        }
+        const username = player.username || player.player || player.name || 'Jugador';
+        labels.push(username);
+        counts.push(shinyCount);
+        playerShinyMap[username] = shinyList;
+      }
+
+      const hasShinies = counts.some(c => c > 0);
+      if (!hasShinies) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = '';
+
+      const totalShinies = counts.reduce((a, b) => a + b, 0);
+      document.getElementById('chartTotal').textContent = totalShinies + ' shiny' + (totalShinies !== 1 ? 's' : '');
+
+      shinyChartData = { labels, counts, playerShinyMap, originalLabels: [...labels], originalCounts: [...counts] };
+
+      if (shinyChartInstance) shinyChartInstance.destroy();
+      renderChart();
+    }
+
+    function renderChart() {
+      if (!shinyChartData) return;
+      const { labels, counts, playerShinyMap } = shinyChartData;
+      const filterVal = (document.getElementById('chartFilter').value || '').toLowerCase().trim();
+      let filteredLabels = labels;
+      let filteredCounts = counts;
+
+      if (filterVal) {
+        filteredLabels = [];
+        filteredCounts = [];
+        for (let i = 0; i < labels.length; i++) {
+          if (labels[i].toLowerCase().includes(filterVal)) {
+            filteredLabels.push(labels[i]);
+            filteredCounts.push(counts[i]);
+          }
+        }
+        if (filteredLabels.length === 0) return;
+      }
+
+      const ctx = document.getElementById('shinyChart').getContext('2d');
+
+      const colors = ['#ffd700','#ff6b6b','#48dbfb','#ff9ff3','#feca57','#54a0ff','#5f27cd','#01a3a4','#f368e0','#ff6348','#7bed9f','#70a1ff'];
+
+      shinyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: filteredLabels,
+          datasets: [{
+            label: 'Shinies',
+            data: filteredCounts,
+            backgroundColor: filteredLabels.map((_, i) => colors[i % colors.length]),
+            borderColor: '#2a2a55',
+            borderWidth: 1,
+            borderRadius: 6,
+            clip: false,
+            barPercentage: 0.65,
+            categoryPercentage: 0.8,
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              offset: 4,
+              color: '#e8e8ff',
+              font: { family: 'Outfit, sans-serif', weight: 'bold', size: 14 },
+              formatter: function(val) { return val > 0 ? val : ''; }
+            }
+          }]
+        },
+          options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: {
+            padding: { top: 30 }
+          },
+          onClick: function(_, elements) {
+            if (elements.length > 0) {
+              const idx = elements[0].index;
+              const username = filteredLabels[idx];
+              showShinyDetail(username, playerShinyMap[username] || []);
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1a1a35',
+              titleColor: '#e8e8ff',
+              bodyColor: '#e8e8ff',
+              borderColor: '#2a2a55',
+              borderWidth: 1,
+              padding: 10,
+              callbacks: {
+                label: function(ctx) {
+                  return ctx.parsed.y + ' shiny' + (ctx.parsed.y !== 1 ? 's' : '');
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              suggestedMax: function() {
+                let max = Math.max(...filteredCounts, 1);
+                return max + Math.ceil(max * 0.3);
+              }(),
+              ticks: {
+                stepSize: 1,
+                color: '#7070aa',
+                font: { family: 'Outfit, sans-serif', size: 11 },
+                precision: 0
+              },
+              grid: { color: 'rgba(42,42,85,0.4)' }
+            },
+            x: {
+              ticks: {
+                color: '#e8e8ff',
+                font: { family: 'Outfit, sans-serif', size: 11 }
+              },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function showShinyDetail(username, shinyList) {
+      const detail = document.getElementById('chartDetail');
+      const title = document.getElementById('chartDetailTitle');
+      const body = document.getElementById('chartDetailBody');
+
+      title.textContent = username + ' — ' + shinyList.length + ' shiny' + (shinyList.length !== 1 ? 's' : '');
+      body.innerHTML = '';
+
+      if (shinyList.length === 0) {
+        body.innerHTML = '<div style="color:var(--muted);font-size:0.75rem">Sin datos</div>';
+        detail.style.display = '';
+        return;
+      }
+
+      for (const s of shinyList) {
+        const card = document.createElement('div');
+        card.className = 'chart-detail-card';
+
+        const spriteUrl = s.sprite || 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png';
+        const displayName = s.nickname || s.name || '???';
+
+        card.innerHTML =
+          '<img src="' + spriteUrl + '" alt="" onerror="this.style.opacity=\'0.2\'" loading="lazy">' +
+          '<div class="chart-detail-card-info">' +
+          '  <span class="chart-detail-card-name">' + capitalize(displayName) + '</span>' +
+          '  <div class="chart-detail-card-meta">' +
+          '    <span>Nv.' + s.level + '</span>' +
+          '    <span>· Caja ' + s.box + '</span>' +
+          (s.types.length ? s.types.map(function(t) { return '<span class="type-badge type-' + t.toLowerCase() + '">' + t + '</span>'; }).join('') : '') +
+          '  </div>' +
+          '</div>';
+
+        body.appendChild(card);
+      }
+
+      detail.style.display = '';
+    }
+
+    document.getElementById('chartFilter').addEventListener('input', function() {
+      if (shinyChartInstance) shinyChartInstance.destroy();
+      renderChart();
+    });
+    document.getElementById('chartDetailClose').addEventListener('click', function() {
+      document.getElementById('chartDetail').style.display = 'none';
+    });
+
     async function loadTeams(manual = false) {
       const btn = document.getElementById('refreshBtn');
       const root = document.getElementById('root');
@@ -1124,6 +1407,7 @@
                   ${abilityName ? `<div class="detail-meta-item"><span class="detail-meta-label">Habilidad</span><span>${abilityName}</span></div>` : ''}
                   ${rawNature ? `<div class="detail-meta-item"><span class="detail-meta-label">Naturaleza</span><span>${rawNature}${natureEffect.up ? ' <span style="color:#4ade80">↑' + (STAT_NAMES[natureEffect.up]||natureEffect.up) + '</span>' : ''}${natureEffect.down ? ' <span style="color:#f87171">↓' + (STAT_NAMES[natureEffect.down]||natureEffect.down) + '</span>' : ''}</span></div>` : ''}
                   ${currentHp !== null ? `<div class="detail-meta-item"><span class="detail-meta-label">PS actual</span><span>${currentHp}</span></div>` : ''}
+                  ${pk.HeldItem && pk.HeldItem.id ? `<div class="detail-meta-item"><span class="detail-meta-label">Objeto</span><span style="display:flex;align-items:center"><img class="item-icon-detail" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${pk.HeldItem.id.split(':')[1].replace(/_/g, '-')}.png" alt="${pk.HeldItem.id.split(':')[1].replace(/_/g, ' ')}" title="${pk.HeldItem.id.split(':')[1].replace(/_/g, ' ')}" onerror="this.style.display='none'" loading="lazy"></span></div>` : ''}
                 </div>
               </div>
               <div class="detail-stats-section">
@@ -1531,6 +1815,152 @@
     }
     .analysis-missing-cover .analysis-tags .type-badge:hover { opacity: 0.85; }
 
+    /* ── Chart de Shinies ── */
+    .chart-section {
+      max-width: 1200px;
+      margin: 2.5rem auto 2rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem 1.5rem 0.8rem;
+      animation: fadeIn 0.5s ease both;
+    }
+    .chart-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .chart-header h2 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.55rem, 1.5vw, 0.75rem);
+      color: var(--gold);
+      text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+    .chart-subtitle {
+      font-size: 0.75rem;
+      color: var(--muted);
+      flex: 1;
+    }
+    .chart-header-right {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-left: auto;
+    }
+    .chart-filter {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.35rem 0.8rem;
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.75rem;
+      outline: none;
+      width: 160px;
+      transition: border-color 0.2s;
+    }
+    .chart-filter:focus { border-color: var(--accent); }
+    .chart-filter::placeholder { color: var(--muted); }
+    .chart-total {
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+    }
+    .chart-detail {
+      margin-top: 1rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+      animation: fadeSlideIn 0.3s ease;
+    }
+    .chart-detail-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .chart-detail-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--gold);
+    }
+    .chart-detail-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 0.2rem;
+      transition: color 0.2s;
+    }
+    .chart-detail-close:hover { color: var(--accent2); }
+    .chart-detail-body {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.5rem;
+    }
+    .chart-detail-card {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.6rem;
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.72rem;
+      transition: border-color 0.2s;
+    }
+    .chart-detail-card:hover { border-color: var(--accent); }
+    .chart-detail-card img {
+      width: 36px;
+      height: 36px;
+      image-rendering: pixelated;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .chart-detail-card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .chart-detail-card-name {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chart-detail-card-meta {
+      font-size: 0.6rem;
+      color: var(--muted);
+      display: flex;
+      gap: 0.3rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .chart-detail-card-meta .type-badge {
+      font-size: 0.48rem;
+      padding: 0.05rem 0.3rem;
+    }
+
+    @media (max-width: 640px) {
+      .chart-section { padding: 0.8rem 0.8rem; margin: 1.5rem auto 1.2rem; }
+      .chart-header { gap: 0.4rem; }
+      .chart-subtitle { font-size: 0.65rem; width: 100%; order: 3; }
+      .chart-header-right { margin-left: auto; }
+      .chart-filter { width: 120px; font-size: 0.65rem; }
+      .chart-total { font-size: 0.65rem; }
+      .chart-wrap { height: 200px; }
+      .chart-detail-body { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
+
     @media (max-width: 900px) {
       .grid { grid-template-columns: 1fr; }
       .detail-modal { max-width: 500px; }
@@ -1553,7 +1983,7 @@
 
       .team-grid { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; padding: 0.75rem; }
       .poke-slot { padding: 0.4rem 0.3rem; }
-      .poke-slot.empty { min-height: 70px; }
+
       .poke-img-wrap { width: 44px; height: 44px; }
       .poke-img-wrap img { width: 100%; height: 100%; }
       .poke-name { font-size: 0.6rem; }
@@ -1627,7 +2057,6 @@
     @media (max-width: 360px) {
       .team-grid { grid-template-columns: repeat(2, 1fr); gap: 0.25rem; padding: 0.4rem; }
       .poke-img-wrap { width: 30px; height: 30px; }
-      .poke-slot.empty { min-height: 52px; }
       .poke-slot .type-badge { font-size: 0.42rem; }
     }
   </style>

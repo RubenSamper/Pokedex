@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23e53935' stroke='%23333' stroke-width='4'/%3E%3Cpath d='M2 50h96' stroke='%23333' stroke-width='4'/%3E%3Cpath d='M2 50 A48 48 0 0 1 98 50' fill='%23eee'/%3E%3Ccircle cx='50' cy='50' r='14' fill='%23fff' stroke='%23333' stroke-width='4'/%3E%3Ccircle cx='50' cy='50' r='6' fill='%23fff'/%3E%3C/svg%3E">
-    <title>Atlas Pokédex | Objetos Evolutivos</title>
+    <title>Atlas Pokédex | Objetos</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -21,7 +21,7 @@
                         <circle cx="50" cy="50" r="16" fill="#f4f5f7" stroke="rgba(24,32,42,0.12)" stroke-width="2"/>
                         <circle cx="50" cy="50" r="8" fill="#f4f5f7" stroke="rgba(24,32,42,0.15)" stroke-width="1.5"/>
                     </svg>
-                    <h1>Objetos Evolutivos</h1>
+                    <h1>Objetos</h1>
                 </div>
                 <div class="header-right">
                     <button id="btnDarkModeItems" class="toolbar-btn header-btn" title="Modo oscuro">
@@ -35,12 +35,12 @@
             <div class="pokedex-content">
                 <section class="page-hero page-hero-items">
                     <div class="hero-copy">
-                        <span class="hero-eyebrow">Herramientas evolutivas</span>
-                        <h2>Busca objetos y revisa qué Pokémon los usan para evolucionar.</h2>
+                        <span class="hero-eyebrow">Objetos útiles</span>
+                        <h2>Potenciadores, objetos competitivos, evolutivos y más.</h2>
                         <a href="index.html" class="toolbar-btn" id="btnVolver" style="margin-top:12px;display:inline-flex">&#8592; Volver</a>
                     </div>
                     <div class="buscador-contenedor">
-                        <input type="text" id="buscadorItems" class="buscador" placeholder="Buscar objeto evolutivo...">
+                        <input type="text" id="buscadorItems" class="buscador" placeholder="Buscar objeto...">
                         <button id="btnClearItemSearch" class="btn-clear-search oculto" title="Limpiar búsqueda">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                                 viewBox="0 0 16 16">
@@ -53,14 +53,22 @@
                         <div id="itemSuggestions" class="autocomplete-sugerencias oculto"></div>
                     </div>
                 </section>
-            <div id="loadingItems" class="loading-spinner" style="display:none"></div>
-            <div id="itemCount" class="pokemon-count"></div>
-            <div id="galeriaItems" class="galeria-pokemon"></div>
-            <div id="noItemResults" class="no-resultados oculto">No se encontraron objetos</div>
-            <div id="resultadosItems" class="resultados-items" style="display:none"></div>
-        </div>
+                <div id="itemCategorias" class="item-categorias"></div>
+                <div id="loadingItems" class="loading-spinner" style="display:none"></div>
+                <div id="itemCount" class="pokemon-count"></div>
+                <div id="galeriaItems" class="galeria-pokemon"></div>
+                <div id="noItemResults" class="no-resultados oculto">No se encontraron objetos</div>
+                <div id="resultadosItems" class="resultados-items" style="display:none"></div>
+            </div>
         </div>
     </main>
+
+    <div id="itemModal" class="modal-overlay oculto">
+        <div class="modal-content item-modal-content">
+            <button class="modal-cerrar" id="itemModalCerrar">&times;</button>
+            <div id="itemModalBody"></div>
+        </div>
+    </div>
 
     <script src="js/items.js" defer></script>
 </body>
