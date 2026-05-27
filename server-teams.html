@@ -322,7 +322,20 @@
 
 <script>
 const SERVER_ID = '6a16d56a9bd4b6296506e1d7';
-const API_URL = `https://cobblemonextras.com/api/showcase/servers/${SERVER_ID}/players?page=1`;
+
+/**
+ * Proxy CORS — llama a /api/players en lugar de a cobblemonextras directamente.
+ *
+ * - LOCAL:  node proxy-server.js  →  /api/players funciona automáticamente
+ * - PROD:   Despliega _worker.js en Cloudflare Workers y asigna PROXY_BASE
+ *           Ej: PROXY_BASE = 'https://tu-worker.workers.dev'
+ *
+ * Modo local (por defecto): usa ruta relativa → funciona con proxy-server.js
+ */
+const PROXY_BASE = ''; // Déjalo vacío para local. Cámbialo en producción.
+const API_URL = PROXY_BASE
+  ? `${PROXY_BASE}/api/players`
+  : `/api/players`;
 
 // Tipos de Pokémon desde PokeAPI (caché local)
 const typeCache = {};
@@ -346,7 +359,13 @@ async function getPokemonData(name) {
   }
 }
 
-function getSpriteUrl(pokemonName, isShiny = false) {
+function getSpriteUrl(pokemonName, isShiny = false, dexNumber = null) {
+  // Si tenemos el número de Dex, úsalo directamente (evita depender de PokeAPI)
+  if (dexNumber) {
+    if (isShiny) return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${dexNumber}.png`;
+    return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${dexNumber}.png`;
+  }
+  // Fallback: lookup por nombre
   const key = pokemonName.toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (typeCache[key]?.id) {
     const id = typeCache[key].id;
@@ -374,6 +393,30 @@ function normalizePlayersResponse(data) {
   return [];
 }
 
+/**
+ * Obtiene el nombre limpio de un Pokémon desde el objeto party.
+ * La API devuelve Species con prefijo "cobblemon:" y en PascalCase.
+ */
+function getSpeciesName(pk) {
+  const raw = pk.Species || pk.species || pk.name || pk.pokemon || '';
+  // Si tiene namespace ("cobblemon:primarina"), lo quitamos
+  if (raw.includes(':')) return raw.split(':')[1];
+  return raw;
+}
+
+/**
+ * Obtiene los tipos en minúscula desde la respuesta del API.
+ * La API ya devuelve Type1/Type2 directamente.
+ */
+function getApiTypes(pk) {
+  const types = [];
+  if (pk.Type1) types.push(pk.Type1.toLowerCase());
+  if (pk.Type2 && pk.Type2.toLowerCase() !== (pk.Type1 || '').toLowerCase()) {
+    types.push(pk.Type2.toLowerCase());
+  }
+  return types;
+}
+
 async function renderTeams(data) {
   const root = document.getElementById('root');
 
@@ -382,15 +425,15 @@ async function renderTeams(data) {
     return;
   }
 
-  // Pre-fetch tipos en paralelo
-  const allPokemon = data.flatMap(p => (p.party || p.pokemon || p.team || []).map(pk => pk.species || pk.name || ''));
-  await Promise.all([...new Set(allPokemon)].map(name => name ? getPokemonData(name) : null));
+  // NOTA: ya no pre-fetchamos tipos desde PokeAPI,
+  // porque la API de Cobblemon ya incluye Type1/Type2 y DexNumber.
 
   const grid = document.createElement('div');
   grid.className = 'grid';
 
   for (const player of data) {
     const party = player.party || player.pokemon || player.team || [];
+    // El API no devuelve campo "online"; si no está presente asumimos true
     const isOnline = player.online !== false;
     const username = player.username || player.player || player.name || 'Jugador';
 
@@ -426,18 +469,24 @@ async function renderTeams(data) {
 
         if (i < party.length) {
           const pk = party[i];
-          const pkName = pk.species || pk.name || pk.pokemon || 'unknown';
-          const pkLevel = pk.level || pk.lvl || '?';
-          const isShiny = pk.shiny || false;
-          const currentHp = pk.currentHealth ?? pk.hp ?? pk.currentHp ?? null;
-          const maxHp = pk.maxHealth ?? pk.maxHp ?? null;
+
+          // ── Mapeo de campos (API usa PascalCase) ──────────
+          const pkName = getSpeciesName(pk) || 'unknown';
+          const pkLevel = pk.Level ?? pk.level ?? pk.lvl ?? '?';
+          const isShiny = pk.Shiny ?? pk.shiny ?? false;
+          const dexNumber = pk.DexNumber ?? pk.dexNumber ?? null;
+          const currentHp = pk.Health ?? pk.currentHealth ?? pk.hp ?? pk.currentHp ?? null;
+          // El API no expone MaxHealth; lo dejamos como null para no mostrar barra de HP vacía
+          const maxHp = pk.MaxHealth ?? pk.maxHealth ?? pk.maxHp ?? null;
           const hpPct = (currentHp !== null && maxHp) ? Math.round((currentHp / maxHp) * 100) : 100;
 
-          const pokeData = typeCache[pkName.toLowerCase()] || {};
-          const spriteUrl = getSpriteUrl(pkName, isShiny);
-          const types = pokeData.types || [];
+          // Usamos Type1/Type2 de la API directamente (evita llamada a PokeAPI)
+          const types = getApiTypes(pk);
 
-          const tipText = `Nv.${pkLevel}${isShiny ? ' ✨' : ''}${currentHp !== null ? ` · ${Math.round(currentHp)}/${maxHp} HP` : ''}`;
+          // Sprite con DexNumber si está disponible
+          const spriteUrl = getSpriteUrl(pkName, isShiny, dexNumber);
+
+          const tipText = `Nv.${pkLevel}${isShiny ? ' ✨' : ''}${currentHp !== null ? ` · ${currentHp}${maxHp ? '/' + maxHp : ''} HP` : ''}`;
           slot.setAttribute('data-tip', tipText);
 
           slot.innerHTML = `
@@ -448,7 +497,7 @@ async function renderTeams(data) {
             <div class="poke-name">${capitalize(pkName)}</div>
             <div class="poke-level">Nv. ${pkLevel}</div>
             ${types.length ? `<span class="type-badge type-${types[0]}">${types[0]}</span>` : ''}
-            ${currentHp !== null ? `
+            ${currentHp !== null && maxHp ? `
               <div class="poke-hp-bar">
                 <div class="poke-hp-fill ${getHpClass(hpPct)}" style="width:${hpPct}%"></div>
               </div>
