@@ -965,6 +965,26 @@ body.dark-mode .search-hint {
     gap: 12px;
 }
 
+#efectividadContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.efectividad-grupo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.efectividad-label {
+    font-weight: 700;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-right: 4px;
+}
+
 .stat-item {
     display: grid;
     grid-template-columns: 88px minmax(0, 1fr) 42px;

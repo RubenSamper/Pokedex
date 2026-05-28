@@ -1553,30 +1553,64 @@ function cargarEfectividad(types) {
         }
     }
 
+    let debil = [];
+    let resist = [];
+    let inmune = [];
+    for (let tipo in multiplicadores) {
+        let mult = multiplicadores[tipo];
+        if (mult > 1) debil.push(tipo);
+        else if (mult === 0) inmune.push(tipo);
+        else if (mult < 1) resist.push(tipo);
+    }
+
     efectividadContainer.innerHTML = "";
-    var orden = Object.keys(multiplicadores).sort(function (a, b) { return multiplicadores[b] - multiplicadores[a]; });
 
-    orden.forEach(function (tipo) {
-        var mult = multiplicadores[tipo];
-        if (mult === 1) return;
+    if (debil.length > 0) {
+        let grupo = document.createElement("div");
+        grupo.className = "efectividad-grupo";
+        let label = document.createElement("span");
+        label.className = "efectividad-label";
+        label.textContent = "Débil a:";
+        grupo.appendChild(label);
+        debil.forEach(function (tipo) {
+            grupo.appendChild(crearBadgeEfectividad(tipo, multiplicadores[tipo]));
+        });
+        efectividadContainer.appendChild(grupo);
+    }
 
-        var item = document.createElement("div");
-        var clase = mult > 1 ? "efectividad-debil" : mult === 0 ? "efectividad-inmune" : "efectividad-resist";
-        item.className = "efectividad-item " + clase;
+    if (resist.length > 0) {
+        let grupo = document.createElement("div");
+        grupo.className = "efectividad-grupo";
+        let label = document.createElement("span");
+        label.className = "efectividad-label";
+        label.textContent = "Resiste a:";
+        grupo.appendChild(label);
+        resist.forEach(function (tipo) {
+            grupo.appendChild(crearBadgeEfectividad(tipo, multiplicadores[tipo]));
+        });
+        efectividadContainer.appendChild(grupo);
+    }
 
-        var badge = document.createElement("span");
-        badge.className = "tipo-badge";
-        badge.style.background = COLORES_TIPO[tipo] || "#999";
-        badge.textContent = TRAD_TIPO[tipo] || tipo;
-        item.appendChild(badge);
+    if (inmune.length > 0) {
+        let grupo = document.createElement("div");
+        grupo.className = "efectividad-grupo";
+        let label = document.createElement("span");
+        label.className = "efectividad-label";
+        label.textContent = "Inmune a:";
+        grupo.appendChild(label);
+        inmune.forEach(function (tipo) {
+            grupo.appendChild(crearBadgeEfectividad(tipo, multiplicadores[tipo]));
+        });
+        efectividadContainer.appendChild(grupo);
+    }
+}
 
-        var multSpan = document.createElement("span");
-        multSpan.className = "efectividad-mult";
-        multSpan.textContent = mult === 0 ? "INMUNE" : "x" + mult;
-        item.appendChild(multSpan);
-
-        efectividadContainer.appendChild(item);
-    });
+function crearBadgeEfectividad(tipo, mult) {
+    var badge = document.createElement("span");
+    badge.className = "tipo-badge";
+    badge.style.background = COLORES_TIPO[tipo] || "#999";
+    badge.textContent = TRAD_TIPO[tipo] || tipo;
+    return badge;
 }
 
 function cargarFormas(especieData) {
